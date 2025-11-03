@@ -1,4 +1,4 @@
-# extract_financials.py
+
 import pandas as pd
 
 # CSVを読み込む
@@ -9,7 +9,7 @@ df_codes = df_codes.head(10)  # 10社だけテスト用に抽出
 financial_list = []
 
 for index, row in df_codes.iterrows():
-    company_name = row["企業名"]
+    company_name = row["企業名"]# extract_financials.py
     edinet_code = row["EDINETコード"]
     
     # テスト用のサンプル値（XBRL解析の代わり）
