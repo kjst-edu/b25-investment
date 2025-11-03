@@ -1,37 +1,43 @@
-# get_edinet_codes.py
 import requests
+import zipfile
+import io
+import os
 import pandas as pd
-import time
-from datetime import datetime, timedelta
 
-# テスト用に1週間だけ取得
-start_date = datetime(2025, 1, 1)
-end_date   = datetime(2025, 1, 7)
+# === 1. 保存フォルダを作る ===
+output_dir = "edinet_data"
+os.makedirs(output_dir, exist_ok=True)
 
-company_list = []
+# === 2. 取得する日付を設定 ===
+# 例：2024年3月31日提出分を取得
+date = "2024-03-31"
 
-current = start_date
-while current <= end_date:
-    date_str = current.strftime("%Y-%m-%d")
-    url = f"https://disclosure.edinet-fsa.go.jp/api/v2/documents.json?date={date_str}"
-    
-    try:
-        response = requests.get(url)
-        data = response.json()
-        for doc in data["results"]:
-            if doc["docTypeCode"] == "120":  # 有価証券報告書のみ
-                company_list.append({
-                    "企業名": doc["filerName"],
-                    "EDINETコード": doc["filerCode"],
-                    "提出日": date_str
-                })
-    except Exception as e:
-        print(f"取得エラー: {date_str} - {e}")
-    
-    time.sleep(1)
-    current += timedelta(days=1)
+# === 3. EDINET APIから日付指定でリストを取得 ===
+url = f"https://disclosure.edinet-fsa.go.jp/api/v2/documents.json?date={date}"
+response = requests.get(url)
+data = response.json()
 
-# CSVに保存
-df = pd.DataFrame(company_list)
-df.to_csv("edinet_companies_test.csv", index=False, encoding="utf-8-sig")
-print("企業リストCSV保存完了！取得件数:", len(df))
+# === 4. 特定企業の有価証券報告書だけ抽出 ===
+# ここでは一例として「ソニーグループ」を探す
+target_docs = [
+    d for d in data["results"]
+    if "有価証券報告書" in d["docDescription"] and "ソニー" in (d["filerName"] or "")
+]
+
+print(f"該当企業数: {len(target_docs)}")
+
+# === 5. 1社だけダウンロードして展開 ===
+if target_docs:
+    doc_id = target_docs[0]["docID"]
+    download_url = f"https://disclosure.edinet-fsa.go.jp/api/v2/documents/{doc_id}?type=1"
+
+    print(f"ダウンロード中: {target_docs[0]['filerName']}")
+    res = requests.get(download_url)
+
+    # zipを展開
+    with zipfile.ZipFile(io.BytesIO(res.content)) as z:
+        z.extractall(output_dir)
+
+    print("ダウンロード完了。展開フォルダ:", output_dir)
+else:
+    print("該当する書類が見つかりませんでした。")
