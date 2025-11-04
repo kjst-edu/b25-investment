@@ -8,7 +8,7 @@ date = "2025-03-31"
 url = "https://disclosure.edinet-fsa.go.jp/api/v1/documents.json"
 params = {"date": date, "type": 2}  # type=2 → 提出書類リスト
 res = requests.get(url, params=params)
-
+# %%
 data = res.json()
 df = pd.DataFrame(data["results"])
 
