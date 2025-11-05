@@ -1,12 +1,6 @@
 # %%
 from shiny import App, ui, reactive, render
 
-
-#sidebar_s = ui.sidebar(
-    #ui.input_select
-#)
-
-
 app_ui = ui.page_navbar(
     ui.nav_panel("検索", "Page A content"),
     ui.nav_panel("比較", "Page B content"),
