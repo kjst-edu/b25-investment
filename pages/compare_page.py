@@ -1,11 +1,21 @@
-from shiny import ui, render, reactive
+from shiny import App, ui, reactive, render
 
-compare_ui = ui.page_sidebar(
+companies = ["Company A", "Company B", "Company C"]
+
+compare_ui = ui.layout_sidebar(
     ui.sidebar(
-        ui.input_text("compare_search", "検索ワード", placeholder="キーワードを入力"),
-        ui.input_action_button("compare_search_btn", "検索"),
-        ui.hr(),
-        ui.tags.p("サイドバー内に他のフィルタも置けます")
-    ),
-    "Main content",
+        ui.h3("企業間比較"),
+        ui.p("比較する企業を選択してください（複数選択可能):", style="margin-bottom: 8px; font-weight: bold;"),
+        ui.input_selectize(
+            "selected_companies",
+            "",
+            choices=companies,
+            selected=None,
+            multiple=True,
+            options={
+                "placeholder": "企業を選択...",
+                "maxItems": 5
+            }
+        )
+    )
 )

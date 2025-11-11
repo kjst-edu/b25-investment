@@ -5,7 +5,7 @@ import pandas as pd
 # 日付を指定（YYYY-MM-DD）
 date = "2025-03-31"
 
-url = "https://disclosure.edinet-fsa.go.jp/api/v1/documents.json"
+url = "https://disclosure.edinet-fsa.go.jp/api/v2/documents.json"
 params = {"date": date, "type": 2}  # type=2 → 提出書類リスト
 res = requests.get(url, params=params)
 # %%
