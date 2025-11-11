@@ -4,21 +4,21 @@ import csv
 from datetime import date, timedelta
 import time
 
-# === 環境変数からAPIキーを取得（環境変数名: EDINET） ===
-API_KEY = os.getenv("EDINET")
+# === 環境変数からAPIキーを取得 ===
+API_KEY = "9f97057a9e4a41da886258eaee102b8"
 if not API_KEY:
     raise ValueError("環境変数 'EDINET' が設定されていません。")
 
 # === 設定 ===
-BASE_URL = "https://disclosure.edinet-fsa.go.jp/api/v1/documents.json"  # EDINET公式API
+BASE_URL = "https://disclosure.edinet-fsa.go.jp/api/v2/documents.json"
 TYPE = "2"  # 1: メタデータのみ, 2: 提出書類一覧＋メタデータ
 
-# === 期間設定（過去3年） ===
+# === 期間設定（過去1年） ===
 end_date = date.today()
-start_date = end_date.replace(year=end_date.year - 3)
+start_date = end_date.replace(year=end_date.year - 1)
 
 # === CSVファイル名とヘッダー ===
-csv_filename = "edinet_documents_3years.csv"
+csv_filename = "edinet_documents_1year.csv"
 csv_header = ["date", "docID", "edinetCode", "filerName", "docTypeCode", "submitDateTime", "docDescription"]
 
 # === CSVファイル作成 ===
@@ -31,10 +31,17 @@ with open(csv_filename, mode="w", newline="", encoding="utf-8-sig") as csv_file:
         params = {
             "date": current_date.strftime("%Y-%m-%d"),
             "type": TYPE
-            # EDINETはAPIキー不要なのでここにAPI_KEYは不要
+        }
+        headers = {
+            "X-API-KEY": API_KEY,
+            "User-Agent": "EDINET-API-Example"
         }
 
-        response = requests.get(BASE_URL, params=params)
+        response = requests.get(BASE_URL, params=params, headers=headers)
+
+        # デバッグ用
+        print(response.url)
+        print(response.status_code)
 
         if response.status_code == 200:
             data = response.json()
@@ -57,4 +64,4 @@ with open(csv_filename, mode="w", newline="", encoding="utf-8-sig") as csv_file:
         time.sleep(1)
         current_date += timedelta(days=1)
 
-print("3年分のEDINET書類一覧データをCSVに保存しました")
+print(" 1年分のEDINET書類一覧データをCSVに保存しました")
