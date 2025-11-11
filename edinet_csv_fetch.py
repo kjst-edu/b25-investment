@@ -57,4 +57,4 @@ with open(csv_filename, mode="w", newline="", encoding="utf-8-sig") as csv_file:
         time.sleep(1)
         current_date += timedelta(days=1)
 
-print("✅ 3年分のEDINET書類一覧データをCSVに保存しました")
+print("3年分のEDINET書類一覧データをCSVに保存しました")
