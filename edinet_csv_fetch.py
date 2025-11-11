@@ -5,7 +5,7 @@ from datetime import date, timedelta
 import time
 
 # === 環境変数からAPIキーを取得 ===
-API_KEY = "9f97057a9e4a41da886258eaee102b8"
+API_KEY = "9f97057a9e4a41da8       666              86258eaee102b8"
 if not API_KEY:
     raise ValueError("環境変数 'EDINET' が設定されていません。")
 
@@ -65,3 +65,4 @@ with open(csv_filename, mode="w", newline="", encoding="utf-8-sig") as csv_file:
         current_date += timedelta(days=1)
 
 print(" 1年分のEDINET書類一覧データをCSVに保存しました")
+
