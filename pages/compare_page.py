@@ -3,20 +3,77 @@ from shiny import ui
 
 companies = ["Company A", "Company B", "Company C"]
 
+industry_choices = {
+    "it": "情報・通信",
+    "electronics": "電気・電子",
+    "auto": "自動車・輸送機器",
+    "energy": "資源・エネルギー",
+    "manufacturing": "製造業",
+    "finance": "金融",
+    "real_estate": "不動産",
+    "services": "小売・サービス",
+    "telecom": "通信キャリア",
+    "infrastructure": "公共・インフラ",
+}
+
 compare_ui = ui.layout_sidebar(
+    #----------左：サイドバー----------
     ui.sidebar(
-        ui.h3("企業間比較"),
-        ui.p("比較する企業を選択してください（複数選択可能):", style="margin-bottom: 8px; font-weight: bold;"),
+
+        # 業界
+        ui.h5("業界"),
+        ui.input_select(
+            "selected_industry",
+            None,
+            choices=industry_choices,
+        ),
+
+        # 企業
+        ui.h5("企業（最大3社）"),
         ui.input_selectize(
             "selected_companies",
-            "",
+            None,
             choices=companies,
-            selected=None,
             multiple=True,
             options={
                 "placeholder": "企業を選択...",
-                "maxItems": 5
-            }
-        )
-    )
+                "maxItems": 3,
+            },
+        ),
+        
+        ui.hr(),
+
+        # 指標カテゴリ
+        ui.h5("指標カテゴリ"),
+        ui.input_radio_buttons(
+            "metric_category",
+            None,
+            {
+                "profit": "収益性",
+                "safety": "安全性",
+                "growth": "成長性",
+                "stock": "株価",
+            },
+            selected="profit",
+        ),
+
+        ui.hr(),
+
+        # 比較表に表示する指標（カテゴリに応じて変更）
+        ui.h5("表に表示する指標"),
+        # サーバー側で ui.checkbox_group を返す想定
+        ui.output_ui("metric_checkbox_ui"),
+
+        # グラフに表示する指標（上で選んだ中から1つ）
+        ui.h5("グラフに表示する指標"),
+        # サーバー側で ui.input_radio_buttons or ui.input_select を返す想定
+        ui.output_ui("metric_graph_ui"),
+
+        ui.input_action_button(
+            "run_compare", 
+            "比較する",
+            class_="btn-primary"),
+    ),
+
+    #----------右：メイン画面----------
 )
