@@ -4,7 +4,7 @@ import csv
 import time
 import json
 
-API_KEY = "9f97057a9e4a41da866258eaee102b8"  # 空白を削除
+API_KEY = ""  # 空白を削除
 API_KEY = ""  # 前後の空白なし
 
 BASE_URL = "https://api.edinet-fsa.go.jp/api/v2/documents.json"
