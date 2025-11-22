@@ -76,4 +76,10 @@ compare_ui = ui.layout_sidebar(
     ),
 
     #----------右：メイン画面----------
+    ui.page_fluid(
+        ui.card(
+            ui.h4("企業比較表"),
+            ui.output_table("cmp_table"),
+        )
+    )
 )
