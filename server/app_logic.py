@@ -209,5 +209,19 @@ def compare_logic(input, output, session):
         label_map = metric_choices.get(category, {})
         table.index = [label_map.get(k, k) for k in table.index]
 
-        return table.reset_index().rename(columns={"index": "指標"})
+        df_show = table.reset_index().rename(columns={"index": "指標"})
+
+        # 全て左寄せ
+        styled = (
+            df_show.style
+            .hide(axis="index")
+            .set_table_styles(
+                [
+                    {"selector": "th", "props": [("text-align", "left")]},
+                    {"selector": "td", "props": [("text-align", "left")]},
+                ]
+            )
+        )
+
+        return styled
 
