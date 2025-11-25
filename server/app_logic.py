@@ -79,7 +79,7 @@ def create_mock_financials() -> pd.DataFrame:
                     "fiscal_year": year,
                     # 収益性
                     "sales": sales,
-                    "op_ptofit": op_profit,      # ★ metric_choices と同じキー名
+                    "op_profit": op_profit,      # ★ metric_choices と同じキー名
                     "op_margin": margin * 100,   # % 表示想定
                     "roe": roe,
                     "roa": roa,
@@ -223,5 +223,6 @@ def compare_logic(input, output, session):
             )
         )
 
-        return styled
 
+        return styled
+    
