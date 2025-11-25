@@ -225,3 +225,4 @@ def compare_logic(input, output, session):
 
         return styled
 
+
