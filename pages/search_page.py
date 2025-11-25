@@ -1,26 +1,39 @@
 from shiny import ui, render, reactive
 
-search_ui = ui.page_sidebar(
-    ui.sidebar(
-        ui.input_select(  
-            "select",  
-            "証券コード",  
-            {"1A": "Choice 1A", "1B": "Choice 1B", "1C": "Choice 1C"},  
+CODE_TO_COMPANY = {
+    "1A": "トヨタ",
+    "1B": "任天堂",
+    "1C": "Grape"
+}
+
+search_ui = ui.page_fluid(
+    ui.layout_sidebar(
+        ui.sidebar(
+            ui.input_selectize("select_code", "証券コード", list(CODE_TO_COMPANY.keys())),
+            ui.input_selectize("select_company", "企業名", list(CODE_TO_COMPANY.values())),
+            ui.input_action_button("search_btn", "検索"),
+            ui.hr(),
+            ui.input_action_button("btn1", "企業概要"),
+            ui.input_action_button("btn2", "財務情報"),
+            ui.input_action_button("btn3", "株価情報"),
         ),
-        ui.input_selectize(
-            "fruits",
-            "企業名",
-            ["トヨタ", "任天堂", "Grape", "Orange", "Peach", "Pineapple", "Plum", "Strawberry"],
-            multiple=False,
+        ui.output_ui("main_tab_content"),
+
+        # ここがメイン表示部分
+        ui.layout_column_wrap(
+        ui.value_box(
+            "Current Price",
+            ui.output_ui("price"),
         ),
-        ui.input_action_button("compare_search_btn", "検索"),
-        ui.hr(),
-        ui.navset_pill_list(
-            ui.nav_panel("企業概要", "Panel A content"),
-            ui.nav_panel("財務情報", "Panel B content"),
-            ui.nav_panel("C", "Panel C content"),
-            id="tab_vertical",  
-        )  
-    ),
-    "Main content",
+        ui.value_box(
+            "Change",
+            ui.output_ui("change"),
+        ),
+        ui.value_box(
+            "Percent Change",
+            ui.output_ui("change_percent"),
+        ),
+        fill=False,
+        ),
+    )
 )
