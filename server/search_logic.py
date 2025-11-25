@@ -11,44 +11,7 @@ COMPANY_TO_CODE = {v: k for k, v in CODE_TO_COMPANY.items()}  # 逆引き辞書
 def search_logic(input, output, session):
     active_tab = reactive.value("home")
     
-    """
-    # 最後に更新されたのがどちらかを記録
-    last_updated = reactive.value("none")
     
-    @reactive.effect
-    def sync_selections():
-        code = input.select_code()
-        company = input.select_company()
-        
-        if last_updated.get() == "code" and code:
-            # 証券コードが更新された場合
-            expected_company = CODE_TO_COMPANY.get(code)
-            if expected_company and expected_company != company:
-                ui.update_selectize("select_company", selected=expected_company)
-                last_updated.set("none")
-        
-        elif last_updated.get() == "company" and company:
-            # 企業名が更新された場合
-            expected_code = None
-            for k, v in CODE_TO_COMPANY.items():
-                if v == company:
-                    expected_code = k
-                    break
-            if expected_code and expected_code != code:
-                ui.update_selectize("select_code", selected=expected_code)
-                last_updated.set("none")
-    
-    @reactive.effect
-    @reactive.event(input.select_code)
-    def _():
-        last_updated.set("code")
-    
-    @reactive.effect
-    @reactive.event(input.select_company)
-    def _():
-        last_updated.set("company")
-    """
-
     @reactive.effect
     @reactive.event(input.btn1)
     def _():

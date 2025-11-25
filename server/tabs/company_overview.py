@@ -1,4 +1,5 @@
-from shiny import reactive, render, ui
+from shiny import App, Inputs, Outputs, Session, reactive, render, ui
+from shinywidgets import output_widget, render_plotly
 import yfinance as yf
 from server.explanations import EXPLANATIONS
 
@@ -177,7 +178,15 @@ def ui_content(input, output, session):
                 "配当利回り",
                 ui.output_ui("dividend_yield"),
             ),
+
             fill=False,
+            ),
+            ui.layout_columns(
+                ui.card(
+                    ui.card_header("Price history"),
+                    output_widget("price_history"),
+                    full_screen=True,
+                ),
             ),
         )
     return company_info_2
