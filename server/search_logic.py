@@ -1,29 +1,53 @@
 from shiny import reactive, render, ui
+from explanations import EXPLANATIONS
 
 CODE_TO_COMPANY = {
     "1A": "トヨタ",
     "1B": "任天堂",
-    "1C": "Grape"
+    "1C": "ソフトバンク"
 }
 
 def search_logic(input, output, session):
 
-    company_info = ui.TagList(# ここがメイン表示部分
-        ui.layout_column_wrap(
+    company_info = ui.TagList(
+        # ここがメイン表示部分
+        ui.div(
+            ui.h2(ui.output_text("company_name"), style="text-align: center; margin-bottom: 20px; color: #333;"),
+            style="margin-bottom: 15px;"
+        ),
+            ui.layout_columns(
             ui.value_box(
                 "現在の株価",
                 ui.output_ui("price"),
-            ),
-            ui.value_box(
-                "前日比",
-                ui.output_ui("change"),
             ),
             ui.value_box(
                 "時価総額",
                 ui.output_ui("market_cap"),
             ),
             ui.value_box(
-                "PER",
+                ui.tooltip(
+                    ui.span(
+                        "PER ",
+                        ui.tags.span(
+                            "?", 
+                            style="""
+                                color: white; 
+                                background-color: #007bff; 
+                                border-radius: 50%; 
+                                width: 16px; 
+                                height: 16px; 
+                                display: inline-flex; 
+                                align-items: center; 
+                                justify-content: center; 
+                                font-size: 11px; 
+                                font-weight: bold; 
+                                cursor: help; 
+                                margin-left: 4px;
+                            """
+                        )
+                    ),
+                    EXPLANATIONS["per"]
+                ),
                 ui.output_ui("per"),
             ),
             ui.value_box(
@@ -58,6 +82,13 @@ def search_logic(input, output, session):
             list(CODE_TO_COMPANY.values()),
             selected=company
         )
+    
+    @render.text
+    def company_name():
+        if input.select_company():
+            return input.select_company()
+        else:
+            return "企業を選択してください"
 
 
     @reactive.effect

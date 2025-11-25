@@ -3,7 +3,7 @@ from shiny import ui, render, reactive
 CODE_TO_COMPANY = {
     "1A": "トヨタ",
     "1B": "任天堂",
-    "1C": "Grape"
+    "1C": "ソフトバンク"
 }
 
 search_ui = ui.page_fluid(
