@@ -8,7 +8,7 @@ from server.app_logic import compare_logic
 app_ui = ui.page_navbar(
         ui.nav_panel("検索", search_ui),
         ui.nav_panel("比較", compare_ui),
-        title="タイトル",
+        title="投資ダッシュボード",
         id="page",
     )
 

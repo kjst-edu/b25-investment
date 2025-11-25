@@ -1,9 +1,9 @@
 from shiny import ui, render, reactive
 
 CODE_TO_COMPANY = {
-    "1A": "トヨタ",
-    "1B": "任天堂",
-    "1C": "ソフトバンク"
+    "7203.T": "トヨタ自動車",
+    "7974.T": "任天堂",
+    "9984.T": "ソフトバンクG"
 }
 
 search_ui = ui.page_fluid(

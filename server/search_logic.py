@@ -1,10 +1,12 @@
 from shiny import reactive, render, ui
-from explanations import EXPLANATIONS
+from server.explanations import EXPLANATIONS
+import yfinance as yf
+
 
 CODE_TO_COMPANY = {
-    "1A": "トヨタ",
-    "1B": "任天堂",
-    "1C": "ソフトバンク"
+    "7203.T": "トヨタ自動車",
+    "7974.T": "任天堂",
+    "9984.T": "ソフトバンクG"
 }
 
 def search_logic(input, output, session):
@@ -51,7 +53,29 @@ def search_logic(input, output, session):
                 ui.output_ui("per"),
             ),
             ui.value_box(
-                "ROE",
+                ui.tooltip(
+                    ui.span(
+                        "ROE ",
+                        ui.tags.span(
+                            "?", 
+                            style="""
+                                color: white; 
+                                background-color: #007bff; 
+                                border-radius: 50%; 
+                                width: 16px; 
+                                height: 16px; 
+                                display: inline-flex; 
+                                align-items: center; 
+                                justify-content: center; 
+                                font-size: 11px; 
+                                font-weight: bold; 
+                                cursor: help; 
+                                margin-left: 4px;
+                            """
+                        )
+                    ),
+                    EXPLANATIONS["roe"]
+                ),
                 ui.output_ui("roe"),
             ),
             ui.value_box(
@@ -89,6 +113,80 @@ def search_logic(input, output, session):
             return input.select_company()
         else:
             return "企業を選択してください"
+    
+    @reactive.calc
+    def ticker():
+        return yf.Ticker(input.select_code())
+
+    @render.ui
+    def price():
+        info = ticker().info
+        price = info.get("currentPrice")
+        prev = info.get("previousClose")
+
+        if not price or not prev:
+            return "―"
+
+        change = price - prev
+        change_percent = (change / prev) * 100
+        sign = "+" if change >= 0 else "−"
+        color = "red" if change >= 0 else "blue"
+
+        return ui.HTML(
+            f'<span style="font-size:30px;">{price:,.0f}'
+            f'<span style="font-size:13px;"> 円</span></span> '
+            f'<span style="font-size:13px;"> 前日比</span></span> '
+            f'<span style="color:{color}; font-size:13px; margin-left:4px;">'
+            f'({sign}{abs(change):,.0f} 円 / {sign}{abs(change_percent):.2f}%)'
+            f'</span>'
+        )
+    
+    @render.ui
+    def market_cap():
+        info = ticker().info
+        mc = info.get("marketCap")
+        
+        if not mc:
+            return "―"
+
+        # 億円に変換
+        mc_oku = mc / 100_000_000
+
+        # HTML で文字サイズと右寄せを指定
+        return ui.HTML(
+            f'<div style="font-size:28px;">{mc_oku:,.1f}'
+            f'<span style="font-size:13px;"> </span></div>'
+            f'<div style="text-align:right; font-size:13px;">億円</div>'
+        )
+    
+    @render.ui
+    def per():
+        info = ticker().info
+        per = info.get("trailingPE")
+        return f"{per:.2f}" if per else "―"
+    
+    @render.ui
+    def roe():
+        info = ticker().info
+        roe = info.get("returnOnEquity")
+        return f"{roe*100:.1f}%" if roe else "―"
+    
+    @render.ui
+    def equity_ratio():
+        info = ticker().info
+        debt_to_equity = info.get("debtToEquity")
+        if debt_to_equity:
+            ratio = 100 / (1 + debt_to_equity)
+            return f"{ratio:.1f}%"
+        else:
+            return "―"
+    
+    @render.ui
+    def dividend_yield():
+        info = ticker().info
+        dividend = info.get("dividendYield")
+        return f"{dividend:.2f}%" if dividend else "―"
+
 
 
     @reactive.effect
