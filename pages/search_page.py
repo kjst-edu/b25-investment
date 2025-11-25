@@ -15,25 +15,8 @@ search_ui = ui.page_fluid(
             ui.hr(),
             ui.input_action_button("btn1", "企業概要"),
             ui.input_action_button("btn2", "財務情報"),
-            ui.input_action_button("btn3", "株価情報"),
+            ui.input_action_button("btn3", "株価・投資指標"),
         ),
         ui.output_ui("main_tab_content"),
-
-        # ここがメイン表示部分
-        ui.layout_column_wrap(
-        ui.value_box(
-            "Current Price",
-            ui.output_ui("price"),
-        ),
-        ui.value_box(
-            "Change",
-            ui.output_ui("change"),
-        ),
-        ui.value_box(
-            "Percent Change",
-            ui.output_ui("change_percent"),
-        ),
-        fill=False,
-        ),
     )
 )
