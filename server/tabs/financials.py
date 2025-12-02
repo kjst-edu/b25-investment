@@ -84,7 +84,32 @@ def ui_content(input, output, session):
                     stockholders_equity = balance_sheet.loc[key, latest_year]
                     break
             
-            # 指標計算
+           # === 安全性指標用データ ===
+            # 流動資産（Current Assets）
+            current_assets_keys = ['Current Assets']
+            current_assets = None
+            for key in current_assets_keys:
+                if key in balance_sheet.index:
+                    current_assets = balance_sheet.loc[key, latest_year]
+                    break
+            
+            # 流動負債（Current Liabilities）
+            current_liabilities_keys = ['Current Liabilities']
+            current_liabilities = None
+            for key in current_liabilities_keys:
+                if key in balance_sheet.index:
+                    current_liabilities = balance_sheet.loc[key, latest_year]
+                    break
+            
+            # 固定資産（Non Current Assets）
+            non_current_assets_keys = ['Total Non Current Assets', 'Non Current Assets']
+            non_current_assets = None
+            for key in non_current_assets_keys:
+                if key in balance_sheet.index:
+                    non_current_assets = balance_sheet.loc[key, latest_year]
+                    break
+            
+            # === 収益性指標計算 ===
             operating_margin = None
             roe = None
             roa = None
@@ -98,10 +123,27 @@ def ui_content(input, output, session):
             if net_income and total_assets:
                 roa = (net_income / total_assets) * 100
             
+            # === 安全性指標計算 ===
+            equity_ratio = None
+            current_ratio = None
+            fixed_ratio = None
+            
+            if stockholders_equity and total_assets:
+                equity_ratio = (stockholders_equity / total_assets) * 100
+            
+            if current_assets and current_liabilities:
+                current_ratio = (current_assets / current_liabilities) * 100
+            
+            if non_current_assets and stockholders_equity:
+                fixed_ratio = (non_current_assets / stockholders_equity) * 100
+
             return {
                 'operating_margin': operating_margin,
                 'roe': roe,
                 'roa': roa,
+                'equity_ratio': equity_ratio,
+                'current_ratio': current_ratio,
+                'fixed_ratio': fixed_ratio,
                 'year': latest_year.strftime('%Y')
             }
             
@@ -140,6 +182,40 @@ def ui_content(input, output, session):
         if data['roa'] is not None:
             return f"{data['roa']:.2f}%"
         return "データなし"
+    
+    # === 安全性指標のレンダー関数 ===
+    @render.text
+    def equity_ratio():
+        data = financial_data()
+        if not data:
+            return "データを取得中..."
+        if 'error' in data:
+            return "取得エラー"
+        if data['equity_ratio'] is not None:
+            return f"{data['equity_ratio']:.2f}%"
+        return "データなし"
+
+    @render.text
+    def current_ratio():
+        data = financial_data()
+        if not data:
+            return "データを取得中..."
+        if 'error' in data:
+            return "取得エラー"
+        if data['current_ratio'] is not None:
+            return f"{data['current_ratio']:.2f}%"
+        return "データなし"
+
+    @render.text
+    def fixed_ratio():
+        data = financial_data()
+        if not data:
+            return "データを取得中..."
+        if 'error' in data:
+            return "取得エラー"
+        if data['fixed_ratio'] is not None:
+            return f"{data['fixed_ratio']:.2f}%"
+        return "データなし"
 
     return ui.card(
         ui.card_header(
@@ -149,6 +225,7 @@ def ui_content(input, output, session):
             )
         ),
         ui.card_body(
+            # 収益性指標
             ui.h5("収益性"),
             ui.div(
                 ui.strong("売上高営業利益率："),
@@ -163,6 +240,24 @@ def ui_content(input, output, session):
             ui.div(
                 ui.strong("ROA："),
                 ui.output_text("roa", inline=True),
+                style="margin-bottom: 20px;"
+            ),
+            
+            # 安全性指標
+            ui.h5("安全性"),
+            ui.div(
+                ui.strong("自己資本比率："),
+                ui.output_text("equity_ratio", inline=True),
+                style="margin-bottom: 10px;"
+            ),
+            ui.div(
+                ui.strong("流動比率："),
+                ui.output_text("current_ratio", inline=True),
+                style="margin-bottom: 10px;"
+            ),
+            ui.div(
+                ui.strong("固定比率："),
+                ui.output_text("fixed_ratio", inline=True),
                 style="margin-bottom: 10px;"
             )
         )
