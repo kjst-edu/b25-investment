@@ -61,12 +61,10 @@ compare_ui = ui.layout_sidebar(
 
         # 比較表に表示する指標（カテゴリに応じて変更）
         ui.h5("表に表示する指標"),
-        # サーバー側で ui.checkbox_group を返す想定
         ui.output_ui("metric_checkbox_ui"),
 
         # グラフに表示する指標（上で選んだ中から1つ）
         ui.h5("グラフに表示する指標"),
-        # サーバー側で ui.input_radio_buttons or ui.input_select を返す想定
         ui.output_ui("metric_graph_ui"),
 
         ui.input_action_button(
@@ -78,8 +76,21 @@ compare_ui = ui.layout_sidebar(
     #----------右：メイン画面----------
     ui.page_fluid(
         ui.card(
-            ui.h4("企業比較表"),
+            ui.h4("比較表"),
             ui.output_table("cmp_table"),
+        ),
+        ui.card(
+            ui.h4("比較グラフ"),
+            ui.layout_columns(
+                ui.card(
+                    ui.h5("最新年度"),
+                    ui.output_plot("cmp_graph_latest"),
+                ),
+                ui.card(
+                    ui.h5("時系列（5年）"),
+                    ui.output_plot("cmp_graph_timeseries"),
+                ),
+            ),
         )
     )
 )
