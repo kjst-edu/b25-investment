@@ -1,3 +1,5 @@
+
+# %% 3社のみ、15指標を取得する完全版コード
 import os
 import requests
 import zipfile
@@ -7,13 +9,15 @@ import time
 import pandas as pd
 
 # ===== 設定 =====
-API_KEY = ""  # EDINET APIキー
-DOC_IDS_CSV = "yuho_list.csv"  # 有価証券報告書リスト
-OUTPUT_CSV = "financial_data_15_resume.csv"
+API_KEY = ""  # ここにEDINET APIキーを入力
+OUTPUT_CSV = "financial_data_3companies.csv"
 SAVE_DIR = "./downloaded_docs"
 os.makedirs(SAVE_DIR, exist_ok=True)
 
-# ===== 15指標のタグ候補（できるだけ多く）=====
+# ===== 取得対象docID =====
+TARGET_DOCS = ["S100TP24","S100SN96","S100UG61"]
+
+# ===== 15指標のタグ候補（できるだけ多く） =====
 TAG_CANDIDATES = {
     "売上高": ["NetSales","OperatingRevenue","Revenue","SalesRevenue","SalesRevenueNet","NetOperatingRevenue","営業収益","収益","営業総収入"],
     "営業利益": ["OperatingIncome","OperatingProfit","IncomeFromOperations","営業利益","営業損益"],
@@ -29,17 +33,16 @@ TAG_CANDIDATES = {
     "財務CF": ["NetCashProvidedByUsedInFinancingActivities","財務活動によるキャッシュフロー","財務活動CF"],
     "EPS": ["EarningsPerShareBasic","BasicEarningsLossPerShare","1株当たり当期純利益","EPS"],
     "発行株式数": ["NumberOfIssuedAndOutstandingShares","WeightedAverageNumberOfSharesOutstandingBasic","発行株式数","期中平均株式数"],
-    "営業CFマージン": []
+    "営業CFマージン": []  # 後で計算
 }
 
-# ===== CSV読み込み、再開対応 =====
-if os.path.exists(OUTPUT_CSV):
-    existing_df = pd.read_csv(OUTPUT_CSV)
-else:
-    existing_df = pd.DataFrame()
-
-df_ids = pd.read_csv(DOC_IDS_CSV)
-DOC_IDS = df_ids["docID"].tolist()
+# ===== CSV 書き込み準備 =====
+header = ["docID"] + list(TAG_CANDIDATES.keys())
+write_header = not os.path.exists(OUTPUT_CSV)
+f = open(OUTPUT_CSV,"a",newline="",encoding="utf-8-sig")
+writer = csv.writer(f)
+if write_header:
+    writer.writerow(header)
 
 # ===== XBRL から数値抽出 =====
 def extract_value(root, candidates):
@@ -59,28 +62,9 @@ def extract_value(root, candidates):
         return max(results)
     return None
 
-# ===== CSV 書き込み準備 =====
-header = ["docID"] + list(TAG_CANDIDATES.keys())
-write_header = not os.path.exists(OUTPUT_CSV)
-f = open(OUTPUT_CSV,"a",newline="",encoding="utf-8-sig")
-writer = csv.writer(f)
-if write_header:
-    writer.writerow(header)
-
-# ===== docID ごとに処理 =====
-for i, docID in enumerate(DOC_IDS,1):
-    # 既存データの空欄も取得
-    row_exist = existing_df[existing_df["docID"]==docID]
-    needs_update = True
-    if not row_exist.empty:
-        # すべて埋まっていればスキップ
-        if row_exist.iloc[0][1:].notnull().all():
-            needs_update = False
-    if not needs_update:
-        print(f"[{i}/{len(DOC_IDS)}] {docID} は既存データあり、スキップ")
-        continue
-
-    print(f"[{i}/{len(DOC_IDS)}] 処理中: {docID}")
+# ===== 3社分ループ処理 =====
+for i, docID in enumerate(TARGET_DOCS, 1):
+    print(f"[{i}/{len(TARGET_DOCS)}] 処理中: {docID}")
     try:
         url = f"https://disclosure.edinet-fsa.go.jp/api/v2/documents/{docID}"
         params = {"type":1,"Subscription-Key":API_KEY}
@@ -104,7 +88,7 @@ for i, docID in enumerate(DOC_IDS,1):
                 root = tree.getroot()
                 row = [docID]
                 for key in TAG_CANDIDATES:
-                    if key=="営業CFマージン":
+                    if key == "営業CFマージン":
                         row.append(None)
                         continue
                     val = extract_value(root, TAG_CANDIDATES[key])
@@ -112,9 +96,13 @@ for i, docID in enumerate(DOC_IDS,1):
                 writer.writerow(row)
 
         os.remove(zip_path)
+
     except Exception as e:
         print(f"{docID} エラー: {e}")
+
     time.sleep(0.5)
 
 f.close()
 print(f"\n完了 → {OUTPUT_CSV}")
+
+# %%
