@@ -15,7 +15,7 @@ SAVE_DIR = "./downloaded_docs"
 os.makedirs(SAVE_DIR, exist_ok=True)
 
 # ===== 取得対象docID =====
-TARGET_DOCS = ["S100TP24","S100SN96","S100UG61"]
+TARGET_DOCS = ["S100TR7I","S100TXFX","S100TS7P"]
 
 # ===== 15指標のタグ候補（できるだけ多く） =====
 TAG_CANDIDATES = {
