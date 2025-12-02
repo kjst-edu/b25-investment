@@ -1,5 +1,6 @@
 from shiny import render, ui
 import pandas as pd
+import matplotlib.pyplot as plt
 
 def create_mock_financials() -> pd.DataFrame:
 
@@ -110,7 +111,7 @@ def compare_logic(input, output, session):
     metric_choices = {
         "profit": {
             "sales": "売上高",
-            "op_ptofit": "営業利益",
+            "op_profit": "営業利益",
             "op_margin": "営業利益率",
             "roe": "ROE",
             "roa": "ROA",
@@ -226,3 +227,83 @@ def compare_logic(input, output, session):
 
         return styled
     
+    # 企業比較グラフ（最新年度）
+    @output
+    @render.plot
+    def cmp_graph_latest():
+        companies = input.selected_companies() or []
+        metric = input.selected_metric_for_graph()
+        category = input.metic_category()
+
+        if (not companies) or (metric is None):
+            fig, ax = plt.subplots()
+            ax.text(0.5, 0.5, "企業と指標を選択してください。", ha="center", va="center")
+            ax.axis("off")
+            return fig
+        
+        df_fin = create_mock_financials()
+        df_fin = df_fin[df_fin["company"].isin(companies)]
+
+        if df_fin.empty:
+            fig, ax = plt.subplots()
+            ax.text(0.5, 0.5, "データがありません。", ha="center", va="center")
+            ax.axis("off")
+            return fig
+
+        latest_year = df_fin["fiscal_year"].max()
+        df_latest = df_fin[df_fin["fiscal_year"] == latest_year]
+
+        label_map = metric_choices.get(category, {})
+        metric_label = label_map.get(metric, metric)
+
+        fig, ax = plt.subplots()
+        ax.bar(df_latest["company"], df_latest[metric])
+        ax.set_title(f"{metric_label} の比較（{latest_year}年）")
+        ax.set_ylabel(metric_label)
+        ax.set_xlabel("企業")
+        fig.tight_layout()
+
+        return fig
+    
+    # 企業比較グラフ（時系列）
+    @output
+    @render.plot
+    def cmp_graph_timeseries():
+        companies = input.selected_companies() or []
+        metric = input.selected_metric_for_graph()
+        category = input.metric_category()
+
+        if (not companies) or (metric is None):
+            fig, ax = plt.subplots()
+            ax.text(0.5, 0.5, "企業と指標を選択してください。", ha="center", va="center")
+            ax.axis("off")
+            return fig
+
+        df_fin = create_mock_financials()
+        df_fin = df_fin[df_fin["company"].isin(companies)]
+
+        if df_fin.empty:
+            fig, ax = plt.subplots()
+            ax.text(0.5, 0.5, "データがありません。", ha="center", va="center")
+            ax.axis("off")
+            return fig
+
+        label_map = metric_choices.get(category, {})
+        metric_label = label_map.get(metric, metric)
+
+        fig, ax = plt.subplots()
+
+        # 企業ごとに線を引く
+        for c in companies:
+            sub = df_fin[df_fin["company"] == c].sort_values("fiscal_year")
+            if sub.empty:
+                continue
+            ax.plot(sub["fiscal_year"], sub[metric], marker="o", label=c)
+
+        ax.set_title(f"{metric_label} の推移（時系列）")
+        ax.set_xlabel("年度")
+        ax.set_ylabel(metric_label)
+        ax.legend()
+        fig.tight_layout()
+
+        return fig
