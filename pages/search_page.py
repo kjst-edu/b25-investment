@@ -9,8 +9,8 @@ CODE_TO_COMPANY = {
 search_ui = ui.page_fluid(
     ui.layout_sidebar(
         ui.sidebar(
-            ui.input_selectize("select_code", "証券コード", list(CODE_TO_COMPANY.keys())),
-            ui.input_selectize("select_company", "企業名", list(CODE_TO_COMPANY.values())),
+            ui.output_ui("select_code_ui"),
+            ui.output_ui("select_company_ui"),
             ui.input_action_button("search_btn", "検索"),
             ui.hr(),
             ui.input_action_button("btn1", "企業概要"),

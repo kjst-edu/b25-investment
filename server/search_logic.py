@@ -10,8 +10,45 @@ COMPANY_TO_CODE = {v: k for k, v in CODE_TO_COMPANY.items()}  # 逆引き辞書
 
 def search_logic(input, output, session):
     active_tab = reactive.value("home")
+    selected_code = reactive.value('') # 選択された証券コードを管理
+
+    # 選択ボックスの動的生成
+    @render.ui
+    def select_code_ui():
+        return ui.input_selectize(
+            "select_code", 
+            "証券コード", 
+            choices=list(CODE_TO_COMPANY.keys()),
+            selected=selected_code()
+        )
     
+    @render.ui
+    def select_company_ui():
+        code = selected_code()
+        company = CODE_TO_COMPANY.get(code, "")
+        return ui.input_selectize(
+            "select_company",
+            "企業名",
+            choices=list(CODE_TO_COMPANY.values()),
+            selected=company
+        )
     
+    # 証券コードが変更されたときの処理（@reactive.eventを追加）
+    @reactive.effect
+    @reactive.event(input.select_code)
+    def _():
+        if input.select_code():
+            selected_code.set(input.select_code())
+    
+    # 企業名が変更されたときの処理（@reactive.eventを追加）
+    @reactive.effect
+    @reactive.event(input.select_company)
+    def _():
+        if input.select_company():
+            code = COMPANY_TO_CODE.get(input.select_company())
+            if code and code != selected_code():
+                selected_code.set(code)
+
     @reactive.effect
     @reactive.event(input.btn1)
     def _():
