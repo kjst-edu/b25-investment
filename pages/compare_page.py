@@ -70,7 +70,7 @@ compare_ui = ui.layout_sidebar(
         ui.input_action_button(
             "run_compare", 
             "比較する",
-            class_="btn-primary"),
+            class_="btn-outline-dark"),
     ),
 
     #----------右：メイン画面----------
@@ -90,6 +90,7 @@ compare_ui = ui.layout_sidebar(
                     ui.h5("時系列（5年）"),
                     ui.output_plot("cmp_graph_timeseries"),
                 ),
+                col_widths=[4, 8]
             ),
         )
     )
