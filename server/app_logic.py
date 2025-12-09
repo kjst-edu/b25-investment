@@ -1,4 +1,4 @@
-from shiny import render, ui
+from shiny import render, ui, reactive
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -176,6 +176,7 @@ def compare_logic(input, output, session):
     # 企業比較表
     @output
     @render.table
+    @reactive.event(input.run_compare)
     def cmp_table():
         # 選択された企業と指標を取得
         companies = input.selected_companies() or []
@@ -230,10 +231,11 @@ def compare_logic(input, output, session):
     # 企業比較グラフ（最新年度）
     @output
     @render.plot
+    @reactive.event(input.run_compare)
     def cmp_graph_latest():
         companies = input.selected_companies() or []
         metric = input.selected_metric_for_graph()
-        category = input.metic_category()
+        category = input.metric_category()
 
         if (not companies) or (metric is None):
             fig, ax = plt.subplots()
@@ -268,6 +270,7 @@ def compare_logic(input, output, session):
     # 企業比較グラフ（時系列）
     @output
     @render.plot
+    @reactive.event(input.run_compare)
     def cmp_graph_timeseries():
         companies = input.selected_companies() or []
         metric = input.selected_metric_for_graph()
