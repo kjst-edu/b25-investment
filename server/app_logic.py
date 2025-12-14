@@ -1,4 +1,5 @@
 from shiny import render, ui, reactive
+from matplotlib.ticker import FuncFormatter
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -103,6 +104,30 @@ def create_mock_financials() -> pd.DataFrame:
 
     return pd.DataFrame(rows)
 
+# 桁区切り・%
+def format_yaxis(ax, metric: str):
+    # 金額系の指標
+    money_metrics = ["sales", "op_profit", "market_cap"]
+
+    # ％で表示したい指標
+    percent_metrics = [
+        "op_margin", "roe", "roa",
+        "equity_ratio", "current_ratio", "fixed_ratio",
+        "sales_growth", "op_profit_growth", "rd_ratio",
+        "div_yield", "payout_ratio",
+    ]
+
+    if metric in money_metrics:
+        ax.yaxis.set_major_formatter(
+            FuncFormatter(lambda x, pos: f"{x:,.0f}")
+        )
+    
+    elif metric in percent_metrics:
+        ax.yaxis.set_major_formatter(
+            FuncFormatter(lambda x, pos: f"{x:.1f}%")
+        )
+
+
 
 
 def compare_logic(input, output, session):
@@ -205,6 +230,24 @@ def compare_logic(input, output, session):
             for m in metric_keys:
                 if m in row.index:
                     table.loc[m, c] = row[m]
+                
+        money_metrics = ["sales", "op_profit", "market_cap"]
+        percent_metrics = [
+            "op_margin", "roe", "roa",
+            "equity_ratio", "current_ratio", "fixed_ratio",
+            "sales_growth", "op_profit_growth", "rd_ratio",
+            "div_yield", "payout_ratio",
+        ]
+
+        for m in metric_keys:
+            if m in money_metrics:
+                table.loc[m] = table.loc[m].apply(
+                    lambda v: f"{v:,.0f}" if pd.notna(v) else ""
+                )
+            elif m in percent_metrics:
+                table.loc[m] = table.loc[m].apply(
+                    lambda v: f"{v:.1f}%" if pd.notna(v) else ""
+                )
 
         # 行名を日本語ラベルに変換
         category = input.metric_category()
@@ -260,6 +303,11 @@ def compare_logic(input, output, session):
 
         fig, ax = plt.subplots()
         ax.bar(df_latest["company"], df_latest[metric])
+        ax.grid(axis="y", linestyle="--", alpha=0.5)
+
+        for i, v in enumerate(df_latest[metric]):
+            ax.text(i, v, f"{v:.1f}", ha="center", va="bottom", fontsize=8)
+
         ax.set_title(f"{metric_label} の比較（{latest_year}年）")
         ax.set_ylabel(metric_label)
         ax.set_xlabel("企業")
@@ -303,10 +351,19 @@ def compare_logic(input, output, session):
                 continue
             ax.plot(sub["fiscal_year"], sub[metric], marker="o", label=c)
 
+        years = sorted(df_fin["fiscal_year"].unique())
+        ax.set_xticks(years)
+        ax.set_xticklabels([str(int(y)) for y in years])
+
+        ax.grid(axis="y", linestyle="--", alpha=0.5)
+
         ax.set_title(f"{metric_label} の推移（時系列）")
         ax.set_xlabel("年度")
         ax.set_ylabel(metric_label)
         ax.legend()
+
+        format_yaxis(ax, metric)
+
         fig.tight_layout()
 
         return fig
