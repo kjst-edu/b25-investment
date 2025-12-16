@@ -13,7 +13,7 @@ API_KEY = "980bb7b3286b48d5b8e171adc05c71ae"
 BASE_URL = "https://api.edinet-fsa.go.jp/api/v2/documents.json"
 TYPE = "2"  # 提出書類＋メタデータ
 
-# ✅ 会社コードで絞る
+# 会社コードで絞る（必要なければ [] にする）
 TARGET_EDINET_CODES = ["E02144", "E02142", "E01777"]
 
 # =========================================
@@ -27,12 +27,17 @@ end_date = today
 # 出力設定
 # =========================================
 OUTPUT_DIR = "./edinet_target_3years"
-CSV_FILENAME = "edinet_documents_3years.csv"
+CSV_FILENAME = "edinet_yuho_3years.csv"
 csv_path = os.path.join(OUTPUT_DIR, CSV_FILENAME)
 
 CSV_HEADER = [
-    "date", "docID", "edinetCode", "filerName",
-    "docTypeCode", "submitDateTime", "docDescription"
+    "date",
+    "docID",
+    "edinetCode",
+    "filerName",
+    "docTypeCode",
+    "submitDateTime",
+    "docDescription"
 ]
 
 # =========================================
@@ -54,14 +59,17 @@ with open(csv_path, mode="w", newline="", encoding="utf-8-sig") as f:
     while current_date <= end_date:
         params = {
             "date": current_date.strftime("%Y-%m-%d"),
-            "type": TYPE,
+            "type": TYPE
+        }
+
+        headers = {
             "Subscription-Key": API_KEY
         }
 
         print(f"取得中: {current_date}")
 
         try:
-            response = requests.get(BASE_URL, params=params)
+            response = requests.get(BASE_URL, params=params, headers=headers)
         except Exception as e:
             print(f"通信エラー: {e}")
             current_date += timedelta(days=1)
@@ -70,7 +78,7 @@ with open(csv_path, mode="w", newline="", encoding="utf-8-sig") as f:
         print("status:", response.status_code)
 
         if response.status_code != 200:
-            print("失敗")
+            print("取得失敗")
             current_date += timedelta(days=1)
             time.sleep(1)
             continue
@@ -78,7 +86,7 @@ with open(csv_path, mode="w", newline="", encoding="utf-8-sig") as f:
         try:
             data = response.json()
         except json.JSONDecodeError:
-            print("JSONエラー")
+            print("JSONデコードエラー")
             current_date += timedelta(days=1)
             continue
 
@@ -87,11 +95,16 @@ with open(csv_path, mode="w", newline="", encoding="utf-8-sig") as f:
 
         for r in results:
             edinet_code = r.get("edinetCode", "")
+            doc_description = r.get("docDescription", "")
 
-            # 正しいフィルタ
+            # ① EDINETコードでフィルタ
             if TARGET_EDINET_CODES:
                 if edinet_code not in TARGET_EDINET_CODES:
                     continue
+
+            # ② 有価証券報告書のみ抽出（★重要）
+            if "有価証券報告書" not in doc_description:
+                continue
 
             writer.writerow([
                 current_date.strftime("%Y-%m-%d"),
@@ -100,8 +113,9 @@ with open(csv_path, mode="w", newline="", encoding="utf-8-sig") as f:
                 r.get("filerName", ""),
                 r.get("docTypeCode", ""),
                 r.get("submitDateTime", ""),
-                r.get("docDescription", "")
+                doc_description
             ])
+
             rows_written += 1
 
         print(f"{current_date} -> 保存件数: {rows_written} / 全体: {len(results)}\n")
@@ -110,27 +124,4 @@ with open(csv_path, mode="w", newline="", encoding="utf-8-sig") as f:
         current_date += timedelta(days=1)
 
 print("完了しました")
-print(f"CSV: {csv_path}")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+print(f"CSVファイル: {csv_path}")
