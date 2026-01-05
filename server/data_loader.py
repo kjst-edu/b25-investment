@@ -1,9 +1,8 @@
-# server/data_loader.py
 from pathlib import Path
 import pandas as pd
 
 BASE_DIR = Path(__file__).resolve().parents[1]
-CSV_PATH = BASE_DIR / "data" / "master_financial_indicators.csv"
+CSV_PATH = BASE_DIR / "master_financial_indicators.csv"
 
 META_COLS = ["証券コード", "企業名", "17業種区分", "年度", "提出日", "docID", "EDINETコード", "決算期間"]
 
@@ -13,7 +12,6 @@ def load_master_financials() -> pd.DataFrame:
 
     df = pd.read_csv(CSV_PATH, encoding="utf-8-sig", low_memory=False)
 
-    # 型を整える
     df["証券コード"] = df["証券コード"].astype(str).str.zfill(4)
     df["年度"] = pd.to_numeric(df["年度"], errors="coerce").astype("Int64")
 

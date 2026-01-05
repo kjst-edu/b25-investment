@@ -1,20 +1,26 @@
 from shiny import ui
 
-
-companies = ["Company A", "Company B", "Company C"]
-
+# 17業種
 industry_choices = {
-    "it": "情報・通信",
-    "electronics": "電気・電子",
-    "auto": "自動車・輸送機器",
-    "energy": "資源・エネルギー",
-    "manufacturing": "製造業",
-    "finance": "金融",
+    "food": "食品",
+    "it_services": "情報通信・サービスその他",
+    "electronics_precision": "電機・精密",
+    "retail": "小売",
+    "materials_chemicals": "素材・化学",
+    "construction_materials": "建設・資材",
+    "trading_wholesale": "商社・卸売",
+    "machinery": "機械",
+    "auto_transport": "自動車・輸送機",
+    "transport_logistics": "運輸・物流",
     "real_estate": "不動産",
-    "services": "小売・サービス",
-    "telecom": "通信キャリア",
-    "infrastructure": "公共・インフラ",
+    "finance_nonbank": "金融（除く金融）",
+    "banks": "銀行",
+    "steel_nonferrous": "鉄鋼・非鉄",
+    "pharma": "医薬品",
+    "utilities_gas": "電力・ガス",
+    "energy_resources": "エネルギー資源",
 }
+
 
 compare_ui = ui.layout_sidebar(
     #----------左：サイドバー----------
@@ -33,7 +39,7 @@ compare_ui = ui.layout_sidebar(
         ui.input_selectize(
             "selected_companies",
             None,
-            choices=companies,
+            choices={},
             multiple=True,
             options={
                 "placeholder": "企業を選択...",
@@ -52,7 +58,7 @@ compare_ui = ui.layout_sidebar(
                 "profit": "収益性",
                 "safety": "安全性",
                 "growth": "成長性",
-                "stock": "株価",
+                "cashflow": "キャッシュフロー",
             },
             selected="profit",
         ),
@@ -87,7 +93,7 @@ compare_ui = ui.layout_sidebar(
                     ui.output_plot("cmp_graph_latest"),
                 ),
                 ui.card(
-                    ui.h5("時系列（5年）"),
+                    ui.h5("時系列（3年）"),
                     ui.output_plot("cmp_graph_timeseries"),
                 ),
                 col_widths=[4, 8]

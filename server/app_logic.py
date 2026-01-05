@@ -2,163 +2,118 @@ from shiny import render, ui, reactive
 from matplotlib.ticker import FuncFormatter
 import pandas as pd
 import matplotlib.pyplot as plt
+from server.data_loader import load_master_financials
 
-def create_mock_financials() -> pd.DataFrame:
+INDUSTRY_KEY_TO_JP = {
+    "food": "食品",
+    "it_services": "情報通信・サービスその他",
+    "electronics_precision": "電機・精密",
+    "retail": "小売",
+    "materials_chemicals": "素材・化学",
+    "construction_materials": "建設・資材",
+    "trading_wholesale": "商社・卸売",
+    "machinery": "機械",
+    "auto_transport": "自動車・輸送機",
+    "transport_logistics": "運輸・物流",
+    "real_estate": "不動産",
+    "finance_nonbank": "金融（除く金融）",
+    "banks": "銀行",
+    "steel_nonferrous": "鉄鋼・非鉄",
+    "pharma": "医薬品",
+    "utilities_gas": "電力・ガス",
+    "energy_resources": "エネルギー資源",
+}
 
-    #Company A〜C の 2019〜2023 年の仮データ。
+MONEY_COLS = {
+    "売上高(億円)", "営業利益(億円)", "当期純利益(億円)",
+    "総資産(億円)", "自己資本(億円)", "流動資産(億円)", "流動負債(億円)",
+    "固定資産(億円)", "負債総額(億円)",
+    "営業CF(億円)", "投資CF(億円)", "財務CF(億円)", "フリーCF(億円)",
+}
 
-    companies = ["Company A", "Company B", "Company C"]
-    years = [2019, 2020, 2021, 2022, 2023]
+PERCENT_COLS = {
+    "営業利益率", "ROE", "ROA", "自己資本比率", "流動比率",
+    "営業CFマージン",
+    "売上高成長率", "営業利益成長率", "当期純利益成長率",
+}
 
-    base_sales = {"Company A": 1000, "Company B": 800, "Company C": 600}
-    base_margin = {"Company A": 0.10, "Company B": 0.08, "Company C": 0.12}
-    base_equity_ratio = {"Company A": 40, "Company B": 35, "Company C": 45}
-    base_current_ratio = {"Company A": 150, "Company B": 130, "Company C": 160}
-    base_fixed_ratio = {"Company A": 60, "Company B": 55, "Company C": 50}
-    base_roe = {"Company A": 8, "Company B": 7, "Company C": 9}
-    base_roa = {"Company A": 4, "Company B": 3.5, "Company C": 4.5}
-    base_mcap = {"Company A": 2000, "Company B": 1500, "Company C": 1200}
 
-    rows = []
 
-    for company in companies:
-        prev_sales = None
-        prev_op_profit = None
+# 表示フォーマット
+def fmt_value(col: str, v) -> str:
+    if v is None or (isinstance(v, float) and pd.isna(v)):
+        return ""
+    if col in MONEY_COLS:
+        return f"{v:,.1f}" 
+    if col in PERCENT_COLS:
+        return f"{v:.1f}%"
+    if isinstance(v, (int, float)):
+        return f"{v:,.2f}"
+    return str(v)
 
-        for i, year in enumerate(years):
-            # 会社ごとに成長率を少し変える
-            if company == "Company A":
-                growth_factor = 1 + 0.04 * i
-            elif company == "Company B":
-                growth_factor = 1 + 0.03 * i
-            else:
-                growth_factor = 1 + 0.05 * i
-
-            sales = round(base_sales[company] * growth_factor, 1)
-            margin = base_margin[company] + 0.005 * i
-            op_profit = round(sales * margin, 1)
-
-            # 成長率（最初の年は None）
-            if prev_sales is None:
-                sales_growth = None
-                op_profit_growth = None
-            else:
-                sales_growth = round((sales - prev_sales) / prev_sales * 100, 1)
-                op_profit_growth = round(
-                    (op_profit - prev_op_profit) / prev_op_profit * 100, 1
-                )
-
-            prev_sales = sales
-            prev_op_profit = op_profit
-
-            equity_ratio = base_equity_ratio[company] + i * 0.5
-            current_ratio = base_current_ratio[company] + i * 2
-            fixed_ratio = base_fixed_ratio[company] - i * 1
-            roe = base_roe[company] + i * 0.2
-            roa = base_roa[company] + i * 0.1
-            rd_ratio = 5.0 + i * 0.2
-
-            market_cap = round(base_mcap[company] * growth_factor * 1.1, 1)
-            if company == "Company A":
-                per = 15 + i
-                pbr = 1.2 + 0.05 * i
-                div_yield = 2.0 + 0.1 * i
-                payout_ratio = 30 + i
-            elif company == "Company B":
-                per = 13 + i
-                pbr = 1.1 + 0.04 * i
-                div_yield = 2.3 + 0.1 * i
-                payout_ratio = 35 + i
-            else:
-                per = 17 + i
-                pbr = 1.4 + 0.03 * i
-                div_yield = 1.8 + 0.1 * i
-                payout_ratio = 25 + i
-
-            rows.append(
-                {
-                    "company": company,
-                    "fiscal_year": year,
-                    # 収益性
-                    "sales": sales,
-                    "op_profit": op_profit,      # ★ metric_choices と同じキー名
-                    "op_margin": margin * 100,   # % 表示想定
-                    "roe": roe,
-                    "roa": roa,
-                    # 安全性
-                    "equity_ratio": equity_ratio,
-                    "current_ratio": current_ratio,
-                    "fixed_ratio": fixed_ratio,
-                    # 成長性
-                    "sales_growth": sales_growth,
-                    "op_profit_growth": op_profit_growth,
-                    "rd_ratio": rd_ratio,
-                    # 株価
-                    "market_cap": market_cap,
-                    "per": per,
-                    "pbr": pbr,
-                    "div_yield": div_yield,
-                    "payout_ratio": payout_ratio,
-                }
-            )
-
-    return pd.DataFrame(rows)
-
-# 桁区切り・%
-def format_yaxis(ax, metric: str):
-    # 金額系の指標
-    money_metrics = ["sales", "op_profit", "market_cap"]
-
-    # ％で表示したい指標
-    percent_metrics = [
-        "op_margin", "roe", "roa",
-        "equity_ratio", "current_ratio", "fixed_ratio",
-        "sales_growth", "op_profit_growth", "rd_ratio",
-        "div_yield", "payout_ratio",
-    ]
-
-    if metric in money_metrics:
-        ax.yaxis.set_major_formatter(
-            FuncFormatter(lambda x, pos: f"{x:,.0f}")
-        )
-    
-    elif metric in percent_metrics:
-        ax.yaxis.set_major_formatter(
-            FuncFormatter(lambda x, pos: f"{x:.1f}%")
-        )
-
+# グラフのY軸フォーマット
+def format_yaxis(ax, col: str):
+    if col in MONEY_COLS:
+        ax.yaxis.set_major_formatter(FuncFormatter(lambda x, pos: f"{x:,.0f}"))
+    elif col in PERCENT_COLS:
+        ax.yaxis.set_major_formatter(FuncFormatter(lambda x, pos: f"{x:.0f}%"))
 
 
 
 def compare_logic(input, output, session):
+    # csvを読み込む
+    df_all = load_master_financials()
 
     # カテゴリごとの指標リスト
     metric_choices = {
         "profit": {
-            "sales": "売上高",
-            "op_profit": "営業利益",
-            "op_margin": "営業利益率",
-            "roe": "ROE",
-            "roa": "ROA",
+            "売上高(億円)": "売上高(億円)",
+            "営業利益(億円)": "営業利益(億円)",
+            "当期純利益(億円)": "当期純利益(億円)",
+            "営業利益率": "営業利益率(%)",
+            "ROE": "ROE(%)",
+            "ROA": "ROA(%)",
         },
         "safety": {
-            "equity_ratio": "自己資本比率",
-            "current_ratio": "流動比率",
-            "fixed_ratio": "固定比率",
+            "自己資本比率": "自己資本比率(%)",
+            "流動比率": "流動比率(%)",
         },
         "growth": {
-            "sales_growth": "売上高成長率",
-            "op_profit_growth": "営業利益成長率",
-            "rd_ratio": "研究開発費率",
+            "売上高成長率": "売上高成長率(%)",
+            "営業利益成長率": "営業利益成長率(%)",
+            "当期純利益成長率": "当期純利益成長率(%)"
         },
-        "stock": {
-            "market_cap": "時価総額",
-            "per": "PER",
-            "pbr": "PBR",
-            "div_yield": "配当利回り",
-            "payout_ratio": "配当性向", 
+        "cashflow": {
+            "営業CF(億円)": "営業CF(億円)",
+            "投資CF(億円)": "投資CF(億円)",
+            "財務CF(億円)": "財務CF(億円)",
+            "フリーCF(億円)": "フリーCF(億円)",
+            "営業CFマージン": "営業CFマージン(%)",
         },
     }
+
+    # 業界→企業候補の更新
+    @reactive.effect
+    def _update_company_choices():
+        ind_key = input.selected_industry()
+        if not ind_key:
+            ui.update_selectize("selected_companies", choices={}, selected=[])
+            return
+
+        jp = INDUSTRY_KEY_TO_JP.get(ind_key)
+        if not jp:
+            ui.update_selectize("selected_companies", choices={}, selected=[])
+            return
+
+        sub = (
+            df_all[df_all["17業種区分"] == jp][["証券コード", "企業名"]]
+            .drop_duplicates()
+            .sort_values("証券コード")
+        )
+
+        # value=証券コード, label="1301 極洋"
+        choices = {r["証券コード"]: f'{r["証券コード"]} {r["企業名"]}' for _, r in sub.iterrows()}
+        ui.update_selectize("selected_companies", choices=choices, selected=[])
 
     # チェックボックス
     @output
@@ -198,121 +153,110 @@ def compare_logic(input, output, session):
             selected=selected[0],
         )
     
-    # 企業比較表
+    # 全社に共通する最新年度を優先する
+    def latest_common_year(df_sub: pd.DataFrame, codes: list[str]) -> int:
+        years_sets = []
+        for code in codes:
+            ys = set(df_sub[df_sub["証券コード"] == code]["年度"].dropna().astype(int).tolist())
+            years_sets.append(ys)
+        common = set.intersection(*years_sets) if years_sets else set()
+        if common:
+            return max(common)
+        return int(df_sub["年度"].max())
+    
+    # 企業比較表（最新年度）
     @output
     @render.table
     @reactive.event(input.run_compare)
     def cmp_table():
         # 選択された企業と指標を取得
-        companies = input.selected_companies() or []
-        metric_keys = input.selected_metrics_for_table() or []
+        codes = input.selected_companies() or []
+        metric_cols = input.selected_metrics_for_table() or []
 
-        if not companies or not metric_keys:
+        if not codes or not metric_cols:
             return pd.DataFrame()
 
-        # 仮データを取得
-        df_fin = create_mock_financials()
+        df_sub = df_all[df_all["証券コード"].isin(codes)].copy()
+        if df_sub.empty:
+            return pd.DataFrame()
 
-        df_fin = df_fin[df_fin["company"].isin(companies)]
-        
-        # 最新年度のみを抽出
-        latest_year = df_fin["fiscal_year"].max()
-        df_latest = df_fin[df_fin["fiscal_year"] == latest_year]
+        year = latest_common_year(df_sub, codes)
+        df_latest = df_sub[df_sub["年度"] == year].copy()
 
-        # 表の作成
-        table = pd.DataFrame(index=metric_keys, columns=companies, dtype="float")
-
-        for c in companies:
-            sub = df_latest[df_latest["company"] == c]
-            if sub.empty:
-                continue
-            row = sub.iloc[0]
-            for m in metric_keys:
-                if m in row.index:
-                    table.loc[m, c] = row[m]
-                
-        money_metrics = ["sales", "op_profit", "market_cap"]
-        percent_metrics = [
-            "op_margin", "roe", "roa",
-            "equity_ratio", "current_ratio", "fixed_ratio",
-            "sales_growth", "op_profit_growth", "rd_ratio",
-            "div_yield", "payout_ratio",
-        ]
-
-        for m in metric_keys:
-            if m in money_metrics:
-                table.loc[m] = table.loc[m].apply(
-                    lambda v: f"{v:,.0f}" if pd.notna(v) else ""
-                )
-            elif m in percent_metrics:
-                table.loc[m] = table.loc[m].apply(
-                    lambda v: f"{v:.1f}%" if pd.notna(v) else ""
-                )
-
-        # 行名を日本語ラベルに変換
-        category = input.metric_category()
-        label_map = metric_choices.get(category, {})
-        table.index = [label_map.get(k, k) for k in table.index]
-
-        df_show = table.reset_index().rename(columns={"index": "指標"})
-
-        # 全て左寄せ
-        styled = (
-            df_show.style
-            .hide(axis="index")
-            .set_table_styles(
-                [
-                    {"selector": "th", "props": [("text-align", "left")]},
-                    {"selector": "td", "props": [("text-align", "left")]},
-                ]
-            )
+        code_to_name = (
+            df_latest[["証券コード", "企業名"]]
+            .drop_duplicates()
+            .set_index("証券コード")["企業名"]
+            .to_dict()
         )
+        col_labels = {c: f"{c} {code_to_name.get(c, '')}".strip() for c in codes}
 
+        table = pd.DataFrame(index=metric_cols, columns=[col_labels[c] for c in codes], dtype=object)
 
-        return styled
+        for c in codes:
+            row_df = df_latest[df_latest["証券コード"] == c]
+            if row_df.empty:
+                continue
+            row = row_df.iloc[0]
+            for col in metric_cols:
+                table.loc[col, col_labels[c]] = fmt_value(col, row.get(col))
+
+        df_show = table.reset_index().rename(columns={"index": f"指標（{year}年）"})
+        return df_show
     
     # 企業比較グラフ（最新年度）
     @output
     @render.plot
     @reactive.event(input.run_compare)
     def cmp_graph_latest():
-        companies = input.selected_companies() or []
-        metric = input.selected_metric_for_graph()
-        category = input.metric_category()
+        codes = input.selected_companies() or []
+        col = input.selected_metric_for_graph()
 
-        if (not companies) or (metric is None):
+        if (not codes) or (col is None):
             fig, ax = plt.subplots()
             ax.text(0.5, 0.5, "企業と指標を選択してください。", ha="center", va="center")
             ax.axis("off")
             return fig
         
-        df_fin = create_mock_financials()
-        df_fin = df_fin[df_fin["company"].isin(companies)]
-
-        if df_fin.empty:
+        df_sub = df_all[df_all["証券コード"].isin(codes)].copy()
+        if df_sub.empty:
             fig, ax = plt.subplots()
             ax.text(0.5, 0.5, "データがありません。", ha="center", va="center")
             ax.axis("off")
             return fig
 
-        latest_year = df_fin["fiscal_year"].max()
-        df_latest = df_fin[df_fin["fiscal_year"] == latest_year]
+        latest_year = latest_common_year(df_sub, codes)
+        df_latest = df_sub[df_sub["年度"] == latest_year].copy()
 
-        label_map = metric_choices.get(category, {})
-        metric_label = label_map.get(metric, metric)
+        code_to_name = (
+            df_latest[["証券コード", "企業名"]]
+            .drop_duplicates()
+            .set_index("証券コード")["企業名"]
+            .to_dict()
+        )
+        labels = [f"{c} {code_to_name.get(c, '')}".strip() for c in codes]
+
+        values = []
+        for c in codes:
+            row_df = df_latest[df_latest["証券コード"] == c]
+            values.append(row_df.iloc[0][col] if not row_df.empty else float("nan"))
 
         fig, ax = plt.subplots()
-        ax.bar(df_latest["company"], df_latest[metric])
+        ax.bar(labels, values)
         ax.grid(axis="y", linestyle="--", alpha=0.5)
-
-        for i, v in enumerate(df_latest[metric]):
-            ax.text(i, v, f"{v:.1f}", ha="center", va="bottom", fontsize=8)
-
-        ax.set_title(f"{metric_label} の比較（{latest_year}年）")
-        ax.set_ylabel(metric_label)
+        ax.set_title(f"{col}（{latest_year}年）")
         ax.set_xlabel("企業")
-        fig.tight_layout()
+        ax.set_ylabel(col)
+        ax.tick_params(axis="x", rotation=20)
 
+        format_yaxis(ax, col)
+
+        for i, v in enumerate(values):
+            if pd.isna(v):
+                continue
+            ax.text(i, v, fmt_value(col, v), ha="center", va="bottom", fontsize=8)
+
+        fig.tight_layout()
         return fig
     
     # 企業比較グラフ（時系列）
@@ -320,49 +264,43 @@ def compare_logic(input, output, session):
     @render.plot
     @reactive.event(input.run_compare)
     def cmp_graph_timeseries():
-        companies = input.selected_companies() or []
-        metric = input.selected_metric_for_graph()
-        category = input.metric_category()
+        codes = input.selected_companies() or []
+        col = input.selected_metric_for_graph()
 
-        if (not companies) or (metric is None):
+        if (not codes) or (col is None):
             fig, ax = plt.subplots()
             ax.text(0.5, 0.5, "企業と指標を選択してください。", ha="center", va="center")
             ax.axis("off")
             return fig
 
-        df_fin = create_mock_financials()
-        df_fin = df_fin[df_fin["company"].isin(companies)]
-
-        if df_fin.empty:
+        df_sub = df_all[df_all["証券コード"].isin(codes)].copy()
+        if df_sub.empty:
             fig, ax = plt.subplots()
             ax.text(0.5, 0.5, "データがありません。", ha="center", va="center")
             ax.axis("off")
             return fig
 
-        label_map = metric_choices.get(category, {})
-        metric_label = label_map.get(metric, metric)
-
         fig, ax = plt.subplots()
 
         # 企業ごとに線を引く
-        for c in companies:
-            sub = df_fin[df_fin["company"] == c].sort_values("fiscal_year")
+        for c in codes:
+            sub = df_sub[df_sub["証券コード"] == c].sort_values("年度")
             if sub.empty:
                 continue
-            ax.plot(sub["fiscal_year"], sub[metric], marker="o", label=c)
+            name = sub["企業名"].iloc[0]
+            ax.plot(sub["年度"], sub[col], marker="o", label=f"{c} {name}".strip())
 
-        years = sorted(df_fin["fiscal_year"].unique())
+        years = sorted(df_sub["年度"].unique())
         ax.set_xticks(years)
         ax.set_xticklabels([str(int(y)) for y in years])
 
         ax.grid(axis="y", linestyle="--", alpha=0.5)
-
-        ax.set_title(f"{metric_label} の推移（時系列）")
+        ax.set_title(f"{col} の推移（時系列）")
         ax.set_xlabel("年度")
-        ax.set_ylabel(metric_label)
+        ax.set_ylabel(col)
         ax.legend()
 
-        format_yaxis(ax, metric)
+        format_yaxis(ax, col)
 
         fig.tight_layout()
 
