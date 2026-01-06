@@ -3,12 +3,8 @@ import yfinance as yf
 import matplotlib.pyplot as plt
 import matplotlib_fontja
 import pandas as pd
+from server.data_company_to_code import CODE_TO_COMPANY
 
-CODE_TO_COMPANY = {
-    "7203.T": "トヨタ自動車",
-    "7974.T": "任天堂",
-    "9984.T": "ソフトバンクG"
-}
 
 def ui_content(input, output, session):
 
