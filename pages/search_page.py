@@ -1,9 +1,10 @@
 from shiny import ui, render, reactive
-from server.data_company_to_code import CODE_TO_COMPANY, COMPANY_TO_CODE
+from server.data_company_to_code import CODE_TO_COMPANY, COMPANY_TO_CODE, CODE_TO_INDUSTRY, INDUSTRY_TO_CODES
 
 search_ui = ui.page_fluid(
     ui.layout_sidebar(
         ui.sidebar(
+            ui.output_ui("select_industry_ui"),
             ui.output_ui("select_code_ui"),
             ui.output_ui("select_company_ui"),
             ui.input_action_button("search_btn", "検索"),

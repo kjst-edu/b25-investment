@@ -3,7 +3,7 @@ import yfinance as yf
 import matplotlib.pyplot as plt
 import matplotlib_fontja
 import pandas as pd
-from server.data_company_to_code import CODE_TO_COMPANY
+from server.data_company_to_code import CODE_TO_COMPANY, COMPANY_TO_CODE, CODE_TO_INDUSTRY, INDUSTRY_TO_CODES
 
 
 def ui_content(input, output, session):
