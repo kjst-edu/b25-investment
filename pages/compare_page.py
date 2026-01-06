@@ -13,13 +13,15 @@ industry_choices = {
     "auto_transport": "自動車・輸送機",
     "transport_logistics": "運輸・物流",
     "real_estate": "不動産",
-    "finance_nonbank": "金融（除く金融）",
+    "finance_nonbank": "金融（除く銀行）",
     "banks": "銀行",
     "steel_nonferrous": "鉄鋼・非鉄",
     "pharma": "医薬品",
     "utilities_gas": "電力・ガス",
     "energy_resources": "エネルギー資源",
 }
+
+industry_choices_with_all = {"": "全業界"} | industry_choices
 
 
 compare_ui = ui.layout_sidebar(
@@ -31,7 +33,8 @@ compare_ui = ui.layout_sidebar(
         ui.input_select(
             "selected_industry",
             None,
-            choices=industry_choices,
+            choices=industry_choices_with_all,
+            selected="",
         ),
 
         # 企業
@@ -81,23 +84,6 @@ compare_ui = ui.layout_sidebar(
 
     #----------右：メイン画面----------
     ui.page_fluid(
-        ui.card(
-            ui.h4("比較表"),
-            ui.output_table("cmp_table"),
-        ),
-        ui.card(
-            ui.h4("比較グラフ"),
-            ui.layout_columns(
-                ui.card(
-                    ui.h5("最新年度"),
-                    ui.output_plot("cmp_graph_latest"),
-                ),
-                ui.card(
-                    ui.h5("時系列（3年）"),
-                    ui.output_plot("cmp_graph_timeseries"),
-                ),
-                col_widths=[4, 8]
-            ),
-        )
+        ui.output_ui("compare_main_ui")
     )
 )
