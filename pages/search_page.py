@@ -20,3 +20,9 @@ search_ui = ui.page_fluid(
         ui.output_ui("main_tab_content"),
     )
 )
+
+# search_page.pyのどこかに追加
+ui.div(
+    ui.output_text("data_info"),
+    style="font-size: 12px; color: #6c757d; margin-bottom: 10px;"
+)
