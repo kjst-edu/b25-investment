@@ -16,7 +16,7 @@ INDUSTRY_KEY_TO_JP = {
     "auto_transport": "自動車・輸送機",
     "transport_logistics": "運輸・物流",
     "real_estate": "不動産",
-    "finance_nonbank": "金融（除く金融）",
+    "finance_nonbank": "金融（除く銀行）",
     "banks": "銀行",
     "steel_nonferrous": "鉄鋼・非鉄",
     "pharma": "医薬品",
@@ -63,6 +63,14 @@ def format_yaxis(ax, col: str):
 def compare_logic(input, output, session):
     # csvを読み込む
     df_all = load_master_financials()
+    df_all["証券コード"] = df_all["証券コード"].astype(str)
+
+    compare_ran = reactive.Value(False)
+
+    @reactive.effect
+    @reactive.event(input.run_compare)
+    def _mark_compare_ran():
+        compare_ran.set(True)
 
     # カテゴリごとの指標リスト
     metric_choices = {
@@ -96,23 +104,25 @@ def compare_logic(input, output, session):
     @reactive.effect
     def _update_company_choices():
         ind_key = input.selected_industry()
-        if not ind_key:
-            ui.update_selectize("selected_companies", choices={}, selected=[])
-            return
+        if not ind_key:  
+            sub = (
+                df_all[["証券コード", "企業名"]]
+                .drop_duplicates()
+                .sort_values("証券コード")
+            )
+        else:
+            jp = INDUSTRY_KEY_TO_JP.get(ind_key)
+            if not jp:
+                ui.update_selectize("selected_companies", choices={}, selected=[])
+                return
 
-        jp = INDUSTRY_KEY_TO_JP.get(ind_key)
-        if not jp:
-            ui.update_selectize("selected_companies", choices={}, selected=[])
-            return
+            sub = (
+                df_all[df_all["17業種区分"] == jp][["証券コード", "企業名"]]
+                .drop_duplicates()
+                .sort_values("証券コード")
+            )
 
-        sub = (
-            df_all[df_all["17業種区分"] == jp][["証券コード", "企業名"]]
-            .drop_duplicates()
-            .sort_values("証券コード")
-        )
-
-        # value=証券コード, label="1301 極洋"
-        choices = {r["証券コード"]: f'{r["証券コード"]} {r["企業名"]}' for _, r in sub.iterrows()}
+        choices = {str(r["証券コード"]): f'{r["企業名"]}【{str(r["証券コード"])}】' for _, r in sub.iterrows()}
         ui.update_selectize("selected_companies", choices=choices, selected=[])
 
     # チェックボックス
@@ -163,6 +173,46 @@ def compare_logic(input, output, session):
         if common:
             return max(common)
         return int(df_sub["年度"].max())
+    
+    # 初期の右画面
+    @output
+    @render.ui
+    def compare_main_ui():
+        if not compare_ran.get():
+            return ui.card(
+                ui.h4("使い方"),
+                ui.markdown(
+                    """
+    **1. 業界（任意）**  
+    - 選択しない → 全企業から選べます  
+    - 選択する → その業界の企業から選べます
+
+    **2. 企業（最大3社）**  
+    比較したい企業を選んでください。
+
+    **3. 指標の選び方**  
+    - 表：複数選択OK  
+    - グラフ：表で選んだ中から1つだけ選択
+
+    最後に **「比較する」** を押してください。
+                    """
+                ),
+            )
+
+        return ui.div(
+            ui.card(
+                ui.h4("比較表"),
+                ui.output_table("cmp_table"),  
+            ),
+            ui.card(
+                ui.h4("比較グラフ"),
+                ui.layout_columns(
+                    ui.card(ui.h5("最新年度"), ui.output_plot("cmp_graph_latest")),
+                    ui.card(ui.h5("時系列（3年）"), ui.output_plot("cmp_graph_timeseries")),
+                    col_widths=[4, 8],
+                ),
+            ),
+        )
     
     # 企業比較表（最新年度）
     @output
