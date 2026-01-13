@@ -279,27 +279,57 @@ def ui_content(input, output, session):
             return f"{data['operating_margin']:.2f}%"
         return "データなし"
 
-    @render.text
+    @render.ui
     def roe():
         data = financial_data()
         if not data:
-            return "データを取得中..."
+            return ui.span("データを取得中...")
         if 'error' in data:
-            return "取得エラー"
+            return ui.span("取得エラー")
         if data['roe'] is not None:
-            return f"{data['roe']:.2f}%"
-        return "データなし"
+            roe_value = data['roe']
+            
+            # ROEの値に基づいて色と評価を決定
+            if roe_value >= 15:
+                color = "green"
+                evaluation = "効率的"
+            elif roe_value >= 8:
+                color = "orange"
+                evaluation = "標準"
+            else:
+                color = "red"
+                evaluation = "非効率"
+            
+            roe_text = f"{roe_value:.2f}%   ({evaluation})"
+            
+            return ui.span(roe_text, style=f"color: {color}; font-weight: bold;")
+        return ui.span("データなし")
 
-    @render.text
+    @render.ui
     def roa():
         data = financial_data()
         if not data:
-            return "データを取得中..."
+            return ui.span("データを取得中...")
         if 'error' in data:
-            return "取得エラー"
+            return ui.span("取得エラー")
         if data['roa'] is not None:
-            return f"{data['roa']:.2f}%"
-        return "データなし"
+            roa_value = data['roa']
+            
+            # ROAの値に基づいて色と評価を決定
+            if roa_value >= 5:
+                color = "green"
+                evaluation = "安定"
+            elif roa_value >= 2:
+                color = "orange"
+                evaluation = "平均的"
+            else:
+                color = "red"
+                evaluation = "弱い"
+            
+            roa_text = f"{roa_value:.2f}% ({evaluation})"
+            
+            return ui.span(roa_text, style=f"color: {color}; font-weight: bold;")
+        return ui.span("データなし")
     
     # === 安全性指標のレンダー関数 ===
     @render.text
@@ -435,12 +465,12 @@ def ui_content(input, output, session):
             ),
             ui.div(
                 ui.strong("ROE："),
-                ui.output_text("roe", inline=True),
+                ui.output_ui("roe", inline=True),  # output_textからoutput_uiに変更
                 style="margin-bottom: 10px;"
             ),
             ui.div(
                 ui.strong("ROA："),
-                ui.output_text("roa", inline=True),
+                ui.output_ui("roa", inline=True),  # output_textからoutput_uiに変更
                 style="margin-bottom: 20px;"
             ),
             
