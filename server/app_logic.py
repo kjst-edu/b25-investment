@@ -51,6 +51,18 @@ def fmt_value(col: str, v) -> str:
         return f"{v:,.2f}"
     return str(v)
 
+# 比較表フォーマット
+def fmt_value_table(col: str, v) -> str:
+    if v is None or (isinstance(v, float) and pd.isna(v)):
+        return "—"
+    if col in MONEY_COLS:
+        return f"{v:,.1f}"
+    if col in PERCENT_COLS:
+        return f"{v:.1f}"   # ← %は付けない
+    if isinstance(v, (int, float)):
+        return f"{v:,.2f}"
+    return str(v)
+
 # グラフのY軸フォーマット
 def format_yaxis(ax, col: str):
     if col in MONEY_COLS:
@@ -174,6 +186,30 @@ def compare_logic(input, output, session):
             return max(common)
         return int(df_sub["年度"].max())
     
+    def build_company_labels(df_latest: pd.DataFrame, codes: list[str]) -> dict[str, str]:
+        """
+        表と同じルール：
+        - 基本は企業名のみ
+        - 企業名が重複した場合だけ（証券コード）を付ける
+        戻り値: {コード: 表示名}
+        """
+        code_to_name = (
+            df_latest[["証券コード", "企業名"]]
+            .drop_duplicates()
+            .set_index("証券コード")["企業名"]
+            .to_dict()
+        )
+
+        names = [code_to_name.get(c, c) for c in codes]
+        name_count = {}
+        for n in names:
+            name_count[n] = name_count.get(n, 0) + 1
+
+        labels = {}
+        for c, n in zip(codes, names):
+            labels[c] = f"{n}（{c}）" if name_count[n] >= 2 else n
+        return labels
+    
     # 初期の右画面
     @output
     @render.ui
@@ -202,21 +238,36 @@ def compare_logic(input, output, session):
         return ui.div(
             ui.card(
                 ui.h4("比較表"),
-                ui.output_table("cmp_table"),  
+                ui.output_ui("cmp_table"),  
             ),
             ui.card(
                 ui.h4("比較グラフ"),
                 ui.layout_columns(
-                    ui.card(ui.h5("最新年度"), ui.output_plot("cmp_graph_latest")),
+                    ui.card(ui.output_ui("latest_year_header"), ui.output_plot("cmp_graph_latest")),
                     ui.card(ui.h5("時系列（3年）"), ui.output_plot("cmp_graph_timeseries")),
                     col_widths=[4, 8],
                 ),
             ),
         )
     
+    @output
+    @render.ui
+    @reactive.event(input.run_compare)
+    def latest_year_header():
+        codes = input.selected_companies() or []
+        if not codes:
+            return ui.h5("最新年度")
+
+        df_sub = df_all[df_all["証券コード"].isin(codes)].copy()
+        if df_sub.empty:
+            return ui.h5("最新年度")
+
+        y = latest_common_year(df_sub, codes)
+        return ui.h5(f"最新年度（{y}年）")
+    
     # 企業比較表（最新年度）
     @output
-    @render.table
+    @render.ui
     @reactive.event(input.run_compare)
     def cmp_table():
         # 選択された企業と指標を取得
@@ -224,11 +275,11 @@ def compare_logic(input, output, session):
         metric_cols = input.selected_metrics_for_table() or []
 
         if not codes or not metric_cols:
-            return pd.DataFrame()
+            return ui.p("企業と指標を選んでください。")
 
         df_sub = df_all[df_all["証券コード"].isin(codes)].copy()
         if df_sub.empty:
-            return pd.DataFrame()
+            return ui.p("データがありません。")
 
         year = latest_common_year(df_sub, codes)
         df_latest = df_sub[df_sub["年度"] == year].copy()
@@ -239,20 +290,49 @@ def compare_logic(input, output, session):
             .set_index("証券コード")["企業名"]
             .to_dict()
         )
-        col_labels = {c: f"{c} {code_to_name.get(c, '')}".strip() for c in codes}
 
-        table = pd.DataFrame(index=metric_cols, columns=[col_labels[c] for c in codes], dtype=object)
+        # 列名：企業名のみ（重複したらコードを付ける）
+        names_in_order = [code_to_name.get(c, c) for c in codes]
+
+        name_count = {}
+        for name in names_in_order:
+            name_count[name] = name_count.get(name, 0) + 1
+
+        col_labels = {}
+        for c, name in zip(codes, names_in_order):
+            col_labels[c] = f"{name}（{c}）" if name_count[name] >= 2 else name
+
+        category = input.metric_category()
+        choices_all = metric_choices.get(category, {})
+        metric_labels = [choices_all.get(m, m) for m in metric_cols]
+
+        table = pd.DataFrame(index=metric_labels, columns=[col_labels[c] for c in codes], dtype=object)
 
         for c in codes:
             row_df = df_latest[df_latest["証券コード"] == c]
             if row_df.empty:
                 continue
             row = row_df.iloc[0]
-            for col in metric_cols:
-                table.loc[col, col_labels[c]] = fmt_value(col, row.get(col))
+            for m, m_label in zip(metric_cols, metric_labels):
+                table.loc[m_label, col_labels[c]] = fmt_value_table(m, row.get(m))
 
         df_show = table.reset_index().rename(columns={"index": f"指標（{year}年）"})
-        return df_show
+        
+        html = df_show.to_html(index=False, classes="cmp-table", border=0)
+
+        return ui.TagList(
+            ui.tags.style("""
+                .cmp-table { width:100%; table-layout:fixed; border-collapse:collapse; }
+                .cmp-table th, .cmp-table td { padding:6px 10px; border-bottom:1px solid #eee; white-space:nowrap; }
+                .cmp-table th { text-align:center; overflow:hidden; text-overflow:ellipsis; border-bottom:1px solid #ddd; }
+                .cmp-table td:first-child { text-align:left; }
+                .cmp-table td:not(:first-child) { text-align:right; font-variant-numeric: tabular-nums; }
+                .cmp-table th:first-child, .cmp-table td:first-child { width:34%; }
+                .cmp-table th, .cmp-table td { border-right: 1px solid #f0f0f0; }
+                .cmp-table th:last-child, .cmp-table td:last-child { border-right: none; }
+            """),
+            ui.HTML(html)
+        )
     
     # 企業比較グラフ（最新年度）
     @output
@@ -278,23 +358,18 @@ def compare_logic(input, output, session):
         latest_year = latest_common_year(df_sub, codes)
         df_latest = df_sub[df_sub["年度"] == latest_year].copy()
 
-        code_to_name = (
-            df_latest[["証券コード", "企業名"]]
-            .drop_duplicates()
-            .set_index("証券コード")["企業名"]
-            .to_dict()
-        )
-        labels = [f"{c} {code_to_name.get(c, '')}".strip() for c in codes]
+        label_map = build_company_labels(df_latest, codes)
+        labels = [label_map[c] for c in codes]
 
         values = []
         for c in codes:
             row_df = df_latest[df_latest["証券コード"] == c]
             values.append(row_df.iloc[0][col] if not row_df.empty else float("nan"))
 
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(5.2, 3.6))
         ax.bar(labels, values)
         ax.grid(axis="y", linestyle="--", alpha=0.5)
-        ax.set_title(f"{col}（{latest_year}年）")
+        ax.set_title(col)
         ax.set_xlabel("企業")
         ax.set_ylabel(col)
         ax.tick_params(axis="x", rotation=20)
@@ -305,6 +380,12 @@ def compare_logic(input, output, session):
             if pd.isna(v):
                 continue
             ax.text(i, v, fmt_value(col, v), ha="center", va="bottom", fontsize=8)
+
+        ax.tick_params(axis="x", rotation=0)
+        for t in ax.get_xticklabels():
+            t.set_ha("right")
+
+        fig.subplots_adjust(left=0.18, bottom=0.28, right=0.98, top=0.90)
 
         fig.tight_layout()
         return fig
@@ -332,20 +413,26 @@ def compare_logic(input, output, session):
 
         fig, ax = plt.subplots()
 
+        year = latest_common_year(df_sub, codes)
+        df_latest = df_sub[df_sub["年度"] == year].copy()
+        label_map = build_company_labels(df_latest, codes)
+
         # 企業ごとに線を引く
         for c in codes:
             sub = df_sub[df_sub["証券コード"] == c].sort_values("年度")
             if sub.empty:
                 continue
             name = sub["企業名"].iloc[0]
-            ax.plot(sub["年度"], sub[col], marker="o", label=f"{c} {name}".strip())
+            ax.plot(sub["年度"], sub[col], marker="o", label=label_map.get(c, c))
+            ax.legend(loc="center left", bbox_to_anchor=(1.02, 0.5), borderaxespad=0)
+            fig.subplots_adjust(right=0.78) 
 
         years = sorted(df_sub["年度"].unique())
         ax.set_xticks(years)
         ax.set_xticklabels([str(int(y)) for y in years])
 
         ax.grid(axis="y", linestyle="--", alpha=0.5)
-        ax.set_title(f"{col} の推移（時系列）")
+        ax.set_title(f"{col} の推移")
         ax.set_xlabel("年度")
         ax.set_ylabel(col)
         ax.legend()
