@@ -3,6 +3,8 @@ from matplotlib.ticker import FuncFormatter
 import pandas as pd
 import matplotlib.pyplot as plt
 from server.data_loader import load_master_financials
+import numpy as np
+from matplotlib.patches import FancyBboxPatch
 
 INDUSTRY_KEY_TO_JP = {
     "food": "食品",
@@ -383,15 +385,26 @@ def compare_logic(input, output, session):
             row_df = df_latest[df_latest["証券コード"] == c]
             values.append(row_df.iloc[0][col] if not row_df.empty else float("nan"))
 
+        missing = [pd.isna(v) for v in values]
+        plot_values = [0 if pd.isna(v) else v for v in values]
+
+        x = np.arange(len(labels))
+
         fig, ax = plt.subplots(figsize=(8.0, 3.8))
-        bars = ax.bar(range(len(labels)), values)
+        bars = ax.bar(x, plot_values)
+
+        for b, miss in zip(bars, missing):
+            if miss:
+                b.set_alpha(0.0)
+                b.set_linewidth(0.0)
+
         ax.set_xticks(range(len(labels)))
         ax.set_xticklabels(labels, ha="center")
         ax.grid(axis="y", linestyle="--", alpha=0.5)
         ax.axhline(0, color="black", linewidth=1.2)
         ax.set_title(col)
-        ax.set_xlabel("企業")
-        ax.set_ylabel(col)
+        # ax.set_xlabel("企業")
+        # ax.set_ylabel(col)
 
         format_yaxis(ax, col)
 
@@ -402,11 +415,22 @@ def compare_logic(input, output, session):
             pad = (span * 0.08) if span > 0 else (abs(ymax) * 0.15 + 1)
             ax.set_ylim(ymin - pad, ymax + pad)
 
-        for i, (b, v) in enumerate(zip(bars, values)):
-            if pd.isna(v):
-                continue
+        for b, v, miss in zip(bars, values, missing):
 
-            x = b.get_x() + b.get_width() / 2
+            cx = b.get_x() + b.get_width() / 2
+
+            if miss:
+                ax.annotate(
+                    "欠損",
+                    xy=(cx, 0),
+                    xytext=(0, 3),
+                    textcoords="offset points",
+                    ha="center",
+                    va="bottom",
+                    fontsize=8,
+                    color="#666",
+                )
+                continue
 
             if v >= 0:
                 va = "bottom"           
@@ -417,7 +441,7 @@ def compare_logic(input, output, session):
 
             ax.annotate(
                 fmt_value(col, v),
-                xy=(x, v),
+                xy=(cx, v),
                 xytext=(0, offset),
                 textcoords="offset points",
                 ha="center",
@@ -426,12 +450,8 @@ def compare_logic(input, output, session):
                 clip_on=False,
             )
 
-        ax.tick_params(axis="x", rotation=0)
-        for t in ax.get_xticklabels():
-            t.set_ha("center")
 
         fig.subplots_adjust(left=0.18, bottom=0.28, right=0.98, top=0.90)
-
         fig.tight_layout()
         return fig
     
@@ -456,35 +476,121 @@ def compare_logic(input, output, session):
             ax.axis("off")
             return fig
 
-        fig, ax = plt.subplots()
+        years = sorted(df_sub["年度"].dropna().astype(int).unique().tolist())
+            
+        fig, (ax, ax_info) = plt.subplots(
+            1, 2,
+            figsize=(11.0, 4.0),
+            gridspec_kw={"width_ratios": [3.4, 1.3]}
+        )
 
+        # ラベル
         year = latest_common_year(df_sub, codes)
         df_latest = df_sub[df_sub["年度"] == year].copy()
         label_map = build_company_labels(df_latest, codes)
 
-        # 企業ごとに線を引く
-        for c in codes:
-            sub = df_sub[df_sub["証券コード"] == c].sort_values("年度")
-            if sub.empty:
-                continue
-            name = sub["企業名"].iloc[0]
-            ax.plot(sub["年度"], sub[col], marker="o", label=label_map.get(c, c))
-        
-        ax.legend(loc="center left", bbox_to_anchor=(1.02, 0.5), borderaxespad=0)
-        fig.subplots_adjust(right=0.78) 
-
-        years = sorted(df_sub["年度"].unique())
+        # 軸設定
         ax.set_xticks(years)
         ax.set_xticklabels([str(int(y)) for y in years])
-
         ax.grid(axis="y", linestyle="--", alpha=0.5)
+        ax.axhline(0, color="black", linewidth=1.0, linestyle="--", alpha=0.6)
         ax.set_title(f"{col} の推移")
-        ax.set_xlabel("年度")
-        ax.set_ylabel(col)
-        ax.legend()
+        # ax.set_xlabel("年度")
+        # ax.set_ylabel(col)
 
         format_yaxis(ax, col)
 
-        fig.tight_layout()
+        def unit_suffix(c: str) -> str:
+            if c in MONEY_COLS:
+                return "億円"
+            if c in PERCENT_COLS:
+                return "%"   
+            return ""
 
+        u = unit_suffix(col)
+
+        def fmt_delta(c: str, v: float) -> str:
+            if v is None or (isinstance(v, float) and pd.isna(v)):
+                return "—"
+            if c in MONEY_COLS:
+                return f"{v:+,.1f} {u}".strip()
+            if c in PERCENT_COLS:
+                return f"{v:+.1f}%"
+            return f"{v:+,.2f}"
+
+        def fmt_avg(c: str, v: float) -> str:
+            if v is None or (isinstance(v, float) and pd.isna(v)):
+                return "—"
+            if c in MONEY_COLS:
+                return f"{v:,.1f} {u}".strip()
+            if c in PERCENT_COLS:
+                return f"{v:.1f}%"
+            return f"{v:,.2f}"
+
+        # 右外に出す情報
+        ax_info.axis("off")
+
+        info_rows = [] 
+
+        for c in codes:
+            sub = df_sub[df_sub["証券コード"] == c].set_index("年度")
+            s = sub[col].reindex(years) 
+            label = label_map.get(c, c)
+
+            # 欠損年
+            miss_years = [str(int(y)) for y in years if pd.isna(s.loc[y])]
+            s_non = s.dropna()
+
+            if not s_non.empty:
+                line = ax.plot(years, s.values, marker="o")[0]
+                color = line.get_color()
+
+                avg = float(s_non.mean())
+
+                if len(s_non) >= 2:
+                    first_y, last_y = int(s_non.index[0]), int(s_non.index[-1])
+                    delta = float(s_non.iloc[-1] - s_non.iloc[0])
+                    delta_text = f"変化: {fmt_value(col, delta)}（{first_y}→{last_y}）"
+                else:
+                    delta_text = "変化: —（データ1点）"
+
+                avg_text = f"平均: {fmt_value(col, avg)}"
+                miss_text = ("欠損: " + ",".join(miss_years)) if miss_years else ""
+                info_rows.append((label, color, avg_text, delta_text, miss_text))
+            else:
+                info_rows.append((label, "#666666", "平均: —", "変化: —", "欠損（全期間）"))
+
+        y = 0.92
+        base_h = 0.26
+        gap = 0.04
+
+        for (label, color, avg_text, delta_text, miss_text) in info_rows:
+            extra = 0.07 if miss_text else 0.0
+            h = base_h + extra
+
+            box = FancyBboxPatch(
+                (0.02, y - h), 0.96, h,
+                boxstyle="round,pad=0.012,rounding_size=0.02",
+                transform=ax_info.transAxes,
+                linewidth=1.0,
+                edgecolor="#dddddd",
+                facecolor="none"
+            )
+            ax_info.add_patch(box)
+            
+            # 色サンプル
+            ax_info.plot([0.06, 0.16], [y - 0.07, y - 0.07],
+                        color=color, lw=2, transform=ax_info.transAxes, clip_on=False)
+
+            # テキスト
+            ax_info.text(0.18, y - 0.07, label, fontsize=9, va="center", transform=ax_info.transAxes)
+            ax_info.text(0.18, y - 0.14, avg_text, fontsize=8, color="#555", va="center", transform=ax_info.transAxes)
+            ax_info.text(0.18, y - 0.20, delta_text, fontsize=8, color="#555", va="center", transform=ax_info.transAxes)
+
+            if miss_text:
+                ax_info.text(0.18, y - 0.26, miss_text, fontsize=8, color="#777", va="center", transform=ax_info.transAxes)
+
+            y -= (h + gap)
+
+        fig.tight_layout(pad=1.2)
         return fig
