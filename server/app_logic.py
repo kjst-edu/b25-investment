@@ -242,10 +242,13 @@ def compare_logic(input, output, session):
             ),
             ui.card(
                 ui.h4("比較グラフ"),
-                ui.layout_columns(
-                    ui.card(ui.output_ui("latest_year_header"), ui.output_plot("cmp_graph_latest")),
-                    ui.card(ui.h5("時系列（3年）"), ui.output_plot("cmp_graph_timeseries")),
-                    col_widths=[4, 8],
+                ui.card(
+                    ui.output_ui("latest_year_header"),
+                    ui.output_plot("cmp_graph_latest"),
+                ),
+                ui.card(
+                    ui.h5("時系列（3年）"),
+                    ui.output_plot("cmp_graph_timeseries"),
                 ),
             ),
         )
@@ -366,8 +369,10 @@ def compare_logic(input, output, session):
             row_df = df_latest[df_latest["証券コード"] == c]
             values.append(row_df.iloc[0][col] if not row_df.empty else float("nan"))
 
-        fig, ax = plt.subplots(figsize=(5.2, 3.6))
-        ax.bar(labels, values)
+        fig, ax = plt.subplots(figsize=(8.0, 3.8))
+        ax.bar(range(len(labels)), values)
+        ax.set_xticks(range(len(labels)))
+        ax.set_xticklabels(labels, ha="center")
         ax.grid(axis="y", linestyle="--", alpha=0.5)
         ax.set_title(col)
         ax.set_xlabel("企業")
@@ -383,7 +388,7 @@ def compare_logic(input, output, session):
 
         ax.tick_params(axis="x", rotation=0)
         for t in ax.get_xticklabels():
-            t.set_ha("right")
+            t.set_ha("center")
 
         fig.subplots_adjust(left=0.18, bottom=0.28, right=0.98, top=0.90)
 
@@ -399,14 +404,14 @@ def compare_logic(input, output, session):
         col = input.selected_metric_for_graph()
 
         if (not codes) or (col is None):
-            fig, ax = plt.subplots()
+            fig, ax = plt.subplots(figsize=(9.0, 4.0))
             ax.text(0.5, 0.5, "企業と指標を選択してください。", ha="center", va="center")
             ax.axis("off")
             return fig
 
         df_sub = df_all[df_all["証券コード"].isin(codes)].copy()
         if df_sub.empty:
-            fig, ax = plt.subplots()
+            fig, ax = plt.subplots(figsize=(9.0, 4.0))
             ax.text(0.5, 0.5, "データがありません。", ha="center", va="center")
             ax.axis("off")
             return fig
@@ -424,8 +429,9 @@ def compare_logic(input, output, session):
                 continue
             name = sub["企業名"].iloc[0]
             ax.plot(sub["年度"], sub[col], marker="o", label=label_map.get(c, c))
-            ax.legend(loc="center left", bbox_to_anchor=(1.02, 0.5), borderaxespad=0)
-            fig.subplots_adjust(right=0.78) 
+        
+        ax.legend(loc="center left", bbox_to_anchor=(1.02, 0.5), borderaxespad=0)
+        fig.subplots_adjust(right=0.78) 
 
         years = sorted(df_sub["年度"].unique())
         ax.set_xticks(years)
