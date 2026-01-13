@@ -3,6 +3,7 @@ import yfinance as yf
 import matplotlib.pyplot as plt
 import matplotlib_fontja
 import pandas as pd
+import os
 from datetime import datetime, timedelta
 from server.explanations import EXPLANATIONS
 from server.data_company_to_code import CODE_TO_COMPANY, COMPANY_TO_CODE, CODE_TO_INDUSTRY, INDUSTRY_TO_CODES
@@ -23,6 +24,39 @@ def ui_content(input, output, session):
             return yf.Ticker(code)
         return None
     
+    @reactive.calc
+    def csv_financial_data():
+        """CSVから財務データを取得"""
+        code = input.select_code()
+        if not code:
+            return None
+        
+        try:
+            if os.path.exists('master_financial_indicators.csv'):
+                df = pd.read_csv('master_financial_indicators.csv')
+                
+                # 証券コードから .T を除去
+                clean_code = code.replace('.T', '') if code.endswith('.T') else code
+                
+                # 証券コードでフィルタリング
+                company_data = df[df['証券コード'] == int(clean_code)]
+                
+                if not company_data.empty:
+                    # 2024年度データを優先的に取得
+                    year_2024_data = company_data[company_data['年度'] == 2024]
+                    if not year_2024_data.empty:
+                        latest_data = year_2024_data.iloc[0]
+                        return {
+                            'roe': latest_data.get('ROE', None),
+                            'equity_ratio': latest_data.get('自己資本比率', None),
+                            'data_source': '2024年度データ'
+                        }
+            
+            return None
+            
+        except Exception as e:
+            return None
+
     @render.ui
     def price():
         t = ticker()
@@ -91,19 +125,35 @@ def ui_content(input, output, session):
     
     @render.ui
     def roe():
+        # まずCSVデータを確認
+        csv_data = csv_financial_data()
+        
+        if csv_data and csv_data.get('roe') is not None:
+            roe_value = csv_data['roe']
+            return f"{roe_value:.1f}%"
+        
+        # CSVにデータがない場合、Yahoo Financeから取得
         t = ticker()
         if not t:
             return "―"
             
         try:
             info = t.info
-            roe = info.get("returnOnEquity")
-            return f"{roe*100:.1f}%" if roe else "―"
+            roe_yf = info.get("returnOnEquity")
+            return f"{roe_yf*100:.1f}%" if roe_yf else "―"
         except:
             return "―"
     
     @render.ui
     def equity_ratio():
+        # まずCSVデータを確認
+        csv_data = csv_financial_data()
+        
+        if csv_data and csv_data.get('equity_ratio') is not None:
+            equity_value = csv_data['equity_ratio']
+            return f"{equity_value:.1f}%"
+        
+        # CSVにデータがない場合、Yahoo Financeから取得
         t = ticker()
         if not t:
             return "―"
@@ -271,7 +321,13 @@ def ui_content(input, output, session):
                 ),
                 ui.output_ui("roe")
             ),
-            ui.value_box("自己資本比率", ui.output_ui("equity_ratio")),
+            ui.value_box(
+                ui.tooltip(
+                    ui.span("自己資本比率 ", ui.tags.span("?", style="color: white; background-color: #007bff; border-radius: 50%; width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; cursor: help; margin-left: 4px;")),
+                    EXPLANATIONS["equity_ratio"]
+                ),
+                ui.output_ui("equity_ratio")
+            ),
             ui.value_box("配当利回り", ui.output_ui("dividend_yield")),
             fill=False,
         ),

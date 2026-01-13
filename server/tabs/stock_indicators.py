@@ -95,14 +95,32 @@ def ui_content(input, output, session):
             
             # 平均出来高
             avg_volume = data['Volume'].mean()
+
+            # 前日比の色と符号を決定
+            if price_change > 0:
+                color = "red"
+                sign = "+"
+            elif price_change < 0:
+                color = "blue"
+                sign = ""  # マイナス記号は自動で表示される
+            else:
+                color = "black"
+                sign = ""
             
-            summary = f"""現在値: {latest_price:,.0f}円
-            前日比: {price_change:+,.0f}円 ({price_change_pct:+.2f}%)
-            期間高値: {period_high:,.0f}円
-            期間安値: {period_low:,.0f}円
-            平均出来高: {avg_volume:,.0f}株"""
-            
-            return summary
+            return ui.div(
+                ui.p(f"現在値： {latest_price:,.0f}円", style="margin: 0; margin-bottom: 8px;"),
+                ui.div(
+                    ui.span("前日比： ", style="color: black;"),
+                    ui.span(
+                        f"{sign}{price_change:,.0f}円 ({sign}{price_change_pct:.2f}%)",
+                        style=f"color: {color};"
+                    ),
+                    style="margin: 0; margin-bottom: 8px;"
+                ),
+                ui.p(f"期間高値： {period_high:,.0f}円", style="margin: 0; margin-bottom: 4px;"),
+                ui.p(f"期間安値： {period_low:,.0f}円", style="margin: 0; margin-bottom: 4px;"),
+                ui.p(f"平均出来高： {avg_volume:,.0f}株", style="margin: 0;")
+            )
             
         except Exception as e:
             return "データの取得に失敗しました"
@@ -115,9 +133,9 @@ def ui_content(input, output, session):
             # 株価サマリー（上に移動）
             ui.div(
                 ui.h5("株価情報", style="margin-bottom: 8px;"),
-                ui.pre(
-                    ui.output_text("stock_summary"),
-                    style="margin: 0; white-space: pre-line; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;"
+                ui.div(
+                    ui.output_ui("stock_summary"),
+                    style="margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;"
                 ),
                 style="margin-bottom: 15px; padding: 12px; background-color: #f8f9fa; border-radius: 5px; border-left: 4px solid #007bff;"
             ),

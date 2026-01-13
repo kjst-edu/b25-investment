@@ -5,8 +5,9 @@ import matplotlib_fontja
 import pandas as pd
 from server.data_company_to_code import CODE_TO_COMPANY, COMPANY_TO_CODE, CODE_TO_INDUSTRY, INDUSTRY_TO_CODES
 
-
 def ui_content(input, output, session):
+
+    
 
     @render.text
     def company_name():
@@ -25,11 +26,53 @@ def ui_content(input, output, session):
     @reactive.calc
     def financial_data():
         """財務データを取得して収益性指標を計算"""
-        ticker_obj = ticker()
-        if not ticker_obj:
+        code = input.select_code()
+        if not code:
             return None
         
         try:
+            # まず、master_financial_indicators.csvからデータを取得
+            df = pd.read_csv('master_financial_indicators.csv')
+            
+            # 証券コードでフィルタリング
+            code = int(code.replace('.T', ''))
+            company_data = df[df['証券コード'] == int(code)]
+            
+            # データソースと年度を追跡
+            data_source = None
+            year = None
+            
+            # 2024年度データから優先的に取得
+            for target_year in [2024, 2023, 2022]:
+                year_data = company_data[company_data['年度'] == target_year]
+                if not year_data.empty:
+                    latest_data = year_data.iloc[0]
+                    data_source = f"{target_year}年度時点"
+                    year = str(target_year)
+                    
+                    return {
+                        'operating_margin': latest_data.get('営業利益率', None),
+                        'roe': latest_data.get('ROE', None),
+                        'roa': latest_data.get('ROA', None),
+                        'equity_ratio': latest_data.get('自己資本比率', None),
+                        'current_ratio': latest_data.get('流動比率', None),
+                        'fixed_ratio': None,  # CSVにない場合はNone
+                        'revenue_growth': latest_data.get('売上高成長率', None),
+                        'operating_income_growth': latest_data.get('営業利益成長率', None),
+                        'eps': None,  # CSVにない場合はNone
+                        'operating_cf': latest_data.get('営業CF(億円)', None),
+                        'investing_cf': latest_data.get('投資CF(億円)', None),
+                        'financing_cf': latest_data.get('財務CF(億円)', None),
+                        'free_cf': latest_data.get('フリーCF(億円)', None),
+                        'data_source': data_source,
+                        'year': year
+                    }
+            
+            # CSVにデータがない場合、Yahoo Financeから取得
+            ticker_obj = ticker()
+            if not ticker_obj:
+                return None
+            
             # 財務諸表データを取得
             financials = ticker_obj.financials
             balance_sheet = ticker_obj.balance_sheet
@@ -98,7 +141,7 @@ def ui_content(input, output, session):
                     stockholders_equity = balance_sheet.loc[key, latest_year]
                     break
             
-           # === 安全性指標用データ ===
+            # === 安全性指標用データ ===
             # 流動資産（Current Assets）
             current_assets_keys = ['Current Assets']
             current_assets = None
@@ -203,15 +246,26 @@ def ui_content(input, output, session):
                 'revenue_growth': revenue_growth,
                 'operating_income_growth': operating_income_growth,
                 'eps': eps,
-                'operating_cf': operating_cf,
-                'investing_cf': investing_cf,
-                'financing_cf': financing_cf,
-                'free_cf': free_cf,
+                'operating_cf': operating_cf / 1e8 if operating_cf else None,  # 億円単位に変換
+                'investing_cf': investing_cf / 1e8 if investing_cf else None,  # 億円単位に変換
+                'financing_cf': financing_cf / 1e8 if financing_cf else None,  # 億円単位に変換
+                'free_cf': free_cf / 1e8 if free_cf else None,  # 億円単位に変換
+                'data_source': 'Yahoo Finance参照',
                 'year': latest_year.strftime('%Y')
             }
             
         except Exception as e:
             return {'error': str(e)}
+    
+    @render.text
+    def data_source_info():
+        """データソース情報を表示"""
+        data = financial_data()
+        if not data:
+            return ""
+        if 'error' in data:
+            return ""
+        return f"データソース: {data.get('data_source', 'データなし')}"
 
     # === 収益性指標のレンダー関数 ===
     @render.text
@@ -324,7 +378,7 @@ def ui_content(input, output, session):
         if 'error' in data:
             return "取得エラー"
         if data['operating_cf'] is not None:
-            return f"{data['operating_cf']:,.0f}"
+            return f"{data['operating_cf']:.2f}億円"
         return "データなし"
 
     @render.text
@@ -335,7 +389,7 @@ def ui_content(input, output, session):
         if 'error' in data:
             return "取得エラー"
         if data['investing_cf'] is not None:
-            return f"{data['investing_cf']:,.0f}"
+            return f"{data['investing_cf']:.2f}億円"
         return "データなし"
 
     @render.text
@@ -346,7 +400,7 @@ def ui_content(input, output, session):
         if 'error' in data:
             return "取得エラー"
         if data['financing_cf'] is not None:
-            return f"{data['financing_cf']:,.0f}"
+            return f"{data['financing_cf']:.2f}億円"
         return "データなし"
 
     @render.text
@@ -357,19 +411,23 @@ def ui_content(input, output, session):
         if 'error' in data:
             return "取得エラー"
         if data['free_cf'] is not None:
-            return f"{data['free_cf']:,.0f}"
+            return f"{data['free_cf']:.2f}億円"
         return "データなし"
 
     return ui.card(
         ui.card_header(
             ui.div(
                 ui.h4("財務情報"),
-                ui.output_text("company_name")
+                ui.output_text("company_name"),
+                ui.div(
+                    ui.output_text("data_source_info"),
+                    style="font-size: 0.9em; color: #666; margin-top: 5px;"
+                )
             )
         ),
         ui.card_body(
             # 収益性指標
-            ui.h5("収益性"),
+            ui.h5("＜収益性＞"),
             ui.div(
                 ui.strong("売上高営業利益率："),
                 ui.output_text("operating_margin", inline=True),
@@ -387,7 +445,7 @@ def ui_content(input, output, session):
             ),
             
             # 安全性指標
-            ui.h5("安全性"),
+            ui.h5("＜安全性＞"),
             ui.div(
                 ui.strong("自己資本比率："),
                 ui.output_text("equity_ratio", inline=True),
@@ -405,7 +463,7 @@ def ui_content(input, output, session):
             ),
 
             # 成長性指標
-            ui.h5("成長性"),
+            ui.h5("＜成長性＞"),
             ui.div(
                 ui.strong("売上高成長率："),
                 ui.output_text("revenue_growth", inline=True),
@@ -423,7 +481,7 @@ def ui_content(input, output, session):
             ),
 
             # キャッシュフロー指標
-            ui.h5("キャッシュフロー"),
+            ui.h5("＜キャッシュフロー＞"),
             ui.div(
                 ui.strong("営業CF："),
                 ui.output_text("operating_cf", inline=True),
