@@ -321,7 +321,20 @@ def compare_logic(input, output, session):
 
         df_show = table.reset_index().rename(columns={"index": f"指標（{year}年）"})
         
-        html = df_show.to_html(index=False, classes="cmp-table", border=0)
+        def _td_class(v):
+            return "miss" if str(v) == "—" else ""
+
+        styled = df_show.style.set_table_attributes('class="cmp-table"').applymap(
+            lambda v: "text-align:center;" if str(v) == "—" else None,
+            subset=df_show.columns[1:], 
+        )
+        td_classes = df_show.copy()
+        for c in df_show.columns[1:]:
+            td_classes[c] = df_show[c].map(_td_class)
+        styled = styled.set_td_classes(td_classes)
+        styled = styled.hide(axis="index")
+
+        html = styled.to_html()
 
         return ui.TagList(
             ui.tags.style("""
@@ -333,6 +346,7 @@ def compare_logic(input, output, session):
                 .cmp-table th:first-child, .cmp-table td:first-child { width:34%; }
                 .cmp-table th, .cmp-table td { border-right: 1px solid #f0f0f0; }
                 .cmp-table th:last-child, .cmp-table td:last-child { border-right: none; }
+                .cmp-table td.miss { text-align:center !important; color:#666; }
             """),
             ui.HTML(html)
         )
@@ -370,21 +384,47 @@ def compare_logic(input, output, session):
             values.append(row_df.iloc[0][col] if not row_df.empty else float("nan"))
 
         fig, ax = plt.subplots(figsize=(8.0, 3.8))
-        ax.bar(range(len(labels)), values)
+        bars = ax.bar(range(len(labels)), values)
         ax.set_xticks(range(len(labels)))
         ax.set_xticklabels(labels, ha="center")
         ax.grid(axis="y", linestyle="--", alpha=0.5)
+        ax.axhline(0, color="black", linewidth=1.2)
         ax.set_title(col)
         ax.set_xlabel("企業")
         ax.set_ylabel(col)
-        ax.tick_params(axis="x", rotation=20)
 
         format_yaxis(ax, col)
 
-        for i, v in enumerate(values):
+        vals = [v for v in values if not pd.isna(v)]
+        if vals:
+            ymin, ymax = min(vals), max(vals)
+            span = ymax - ymin
+            pad = (span * 0.08) if span > 0 else (abs(ymax) * 0.15 + 1)
+            ax.set_ylim(ymin - pad, ymax + pad)
+
+        for i, (b, v) in enumerate(zip(bars, values)):
             if pd.isna(v):
                 continue
-            ax.text(i, v, fmt_value(col, v), ha="center", va="bottom", fontsize=8)
+
+            x = b.get_x() + b.get_width() / 2
+
+            if v >= 0:
+                va = "bottom"           
+                offset = 1          
+            else:
+                va = "top"       
+                offset = -1           
+
+            ax.annotate(
+                fmt_value(col, v),
+                xy=(x, v),
+                xytext=(0, offset),
+                textcoords="offset points",
+                ha="center",
+                va=va,
+                fontsize=8,
+                clip_on=False,
+            )
 
         ax.tick_params(axis="x", rotation=0)
         for t in ax.get_xticklabels():
