@@ -3,6 +3,7 @@ import yfinance as yf
 import matplotlib.pyplot as plt
 import matplotlib_fontja
 import pandas as pd
+from server.explanations import EXPLANATIONS
 from server.data_company_to_code import CODE_TO_COMPANY, COMPANY_TO_CODE, CODE_TO_INDUSTRY, INDUSTRY_TO_CODES
 
 def ui_content(input, output, session):
@@ -279,7 +280,7 @@ def ui_content(input, output, session):
             return f"{data['operating_margin']:.2f}%"
         return "データなし"
 
-    @render.ui
+    @render.text
     def roe():
         data = financial_data()
         if not data:
@@ -287,22 +288,8 @@ def ui_content(input, output, session):
         if 'error' in data:
             return ui.span("取得エラー")
         if data['roe'] is not None:
-            roe_value = data['roe']
-            
-            # ROEの値に基づいて色と評価を決定
-            if roe_value >= 15:
-                color = "green"
-                evaluation = "効率的"
-            elif roe_value >= 8:
-                color = "orange"
-                evaluation = "標準"
-            else:
-                color = "red"
-                evaluation = "非効率"
-            
-            roe_text = f"{roe_value:.2f}%   ({evaluation})"
-            
-            return ui.span(roe_text, style=f"color: {color}; font-weight: bold;")
+            roe_text = f"{data['roe']:.2f}%"
+            return ui.span(roe_text)
         return ui.span("データなし")
 
     @render.ui
@@ -313,22 +300,8 @@ def ui_content(input, output, session):
         if 'error' in data:
             return ui.span("取得エラー")
         if data['roa'] is not None:
-            roa_value = data['roa']
-            
-            # ROAの値に基づいて色と評価を決定
-            if roa_value >= 5:
-                color = "green"
-                evaluation = "安定"
-            elif roa_value >= 2:
-                color = "orange"
-                evaluation = "平均的"
-            else:
-                color = "red"
-                evaluation = "弱い"
-            
-            roa_text = f"{roa_value:.2f}% ({evaluation})"
-            
-            return ui.span(roa_text, style=f"color: {color}; font-weight: bold;")
+            roa_text = f"{data['roa']:.2f}%"
+            return ui.span(roa_text)
         return ui.span("データなし")
     
     # === 安全性指標のレンダー関数 ===
@@ -447,8 +420,15 @@ def ui_content(input, output, session):
     return ui.card(
         ui.card_header(
             ui.div(
-                ui.h4("財務情報"),
-                ui.output_text("company_name"),
+                ui.div(
+                    ui.h4("財務情報", style="margin: 0; display: inline-block;"),
+                    ui.span(" | ", style="margin: 0 10px; color: #666; font-size: 1.5em;"),
+                    ui.span(
+                        ui.output_text("company_name", inline=True),
+                        style="font-weight: bold; font-size: 1.5em;"
+                    ),
+                    style="display: flex; align-items: center;"
+                ),
                 ui.div(
                     ui.output_text("data_source_info"),
                     style="font-size: 0.9em; color: #666; margin-top: 5px;"
@@ -456,81 +436,192 @@ def ui_content(input, output, session):
             )
         ),
         ui.card_body(
-            # 収益性指標
-            ui.h5("＜収益性＞"),
+            # 2×2 グリッドレイアウト
             ui.div(
-                ui.strong("売上高営業利益率："),
-                ui.output_text("operating_margin", inline=True),
-                style="margin-bottom: 10px;"
-            ),
-            ui.div(
-                ui.strong("ROE："),
-                ui.output_ui("roe", inline=True),  # output_textからoutput_uiに変更
-                style="margin-bottom: 10px;"
-            ),
-            ui.div(
-                ui.strong("ROA："),
-                ui.output_ui("roa", inline=True),  # output_textからoutput_uiに変更
-                style="margin-bottom: 20px;"
-            ),
-            
-            # 安全性指標
-            ui.h5("＜安全性＞"),
-            ui.div(
-                ui.strong("自己資本比率："),
-                ui.output_text("equity_ratio", inline=True),
-                style="margin-bottom: 10px;"
-            ),
-            ui.div(
-                ui.strong("流動比率："),
-                ui.output_text("current_ratio", inline=True),
-                style="margin-bottom: 10px;"
-            ),
-            ui.div(
-                ui.strong("固定比率："),
-                ui.output_text("fixed_ratio", inline=True),
-                style="margin-bottom: 10px;"
-            ),
-
-            # 成長性指標
-            ui.h5("＜成長性＞"),
-            ui.div(
-                ui.strong("売上高成長率："),
-                ui.output_text("revenue_growth", inline=True),
-                style="margin-bottom: 10px;"
-            ),
-            ui.div(
-                ui.strong("営業利益成長率："),
-                ui.output_text("operating_income_growth", inline=True),
-                style="margin-bottom: 10px;"
-            ),
-            ui.div(
-                ui.strong("EPS（1株当たり利益）："),
-                ui.output_text("eps", inline=True),
-                style="margin-bottom: 20px;"
-            ),
-
-            # キャッシュフロー指標
-            ui.h5("＜キャッシュフロー＞"),
-            ui.div(
-                ui.strong("営業CF："),
-                ui.output_text("operating_cf", inline=True),
-                style="margin-bottom: 10px;"
-            ),
-            ui.div(
-                ui.strong("投資CF："),
-                ui.output_text("investing_cf", inline=True),
-                style="margin-bottom: 10px;"
-            ),
-            ui.div(
-                ui.strong("財務CF："),
-                ui.output_text("financing_cf", inline=True),
-                style="margin-bottom: 10px;"
-            ),
-            ui.div(
-                ui.strong("フリーCF："),
-                ui.output_text("free_cf", inline=True),
-                style="margin-bottom: 10px;"
+                # 上段（1行目）
+                ui.div(
+                    # 左上: 収益性指標
+                    ui.card(
+                        ui.card_header(
+                            "収益性",
+                            style="background-color: #e3f2fd;"
+                            ),
+                        ui.card_body(
+                            ui.div(
+                                ui.strong(
+                                    ui.tooltip(
+                                        ui.span("売上高営業利益率", ui.tags.span("?", style="color: white; background-color: #007bff; border-radius: 50%; width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; cursor: help; margin-left: 4px;")),
+                                        EXPLANATIONS["operating_margin"]
+                                    ),
+                                    "："
+                                ),
+                                ui.output_text("operating_margin", inline=True),
+                                style="margin-bottom: 8px;"
+                            ),
+                            ui.div(
+                                ui.strong(
+                                    ui.tooltip(
+                                        ui.span("ROE", ui.tags.span("?", style="color: white; background-color: #007bff; border-radius: 50%; width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; cursor: help; margin-left: 4px;")),
+                                        EXPLANATIONS["roe"]
+                                    ),
+                                    "："
+                                ),
+                                ui.output_ui("roe", inline=True),
+                                style="margin-bottom: 8px;"
+                            ),
+                            ui.div(
+                                ui.strong(
+                                    ui.tooltip(
+                                        ui.span("ROA", ui.tags.span("?", style="color: white; background-color: #007bff; border-radius: 50%; width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; cursor: help; margin-left: 4px;")),
+                                        EXPLANATIONS["roa"]
+                                    ),
+                                    "："
+                                ),
+                                ui.output_ui("roa", inline=True),
+                                style="margin-bottom: 0px;"
+                            ),
+                        )
+                    ),
+                    
+                    # 右上: 安全性指標
+                    ui.card(
+                        ui.card_header(
+                            "安全性",
+                            style="background-color: #e3f2fd;"
+                            ),
+                        ui.card_body(
+                            ui.div(
+                                ui.strong(
+                                    ui.tooltip(
+                                        ui.span("自己資本比率", ui.tags.span("?", style="color: white; background-color: #007bff; border-radius: 50%; width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; cursor: help; margin-left: 4px;")),
+                                        EXPLANATIONS["equity_ratio"]
+                                    ),
+                                    "："
+                                ),
+                                ui.output_text("equity_ratio", inline=True),
+                                style="margin-bottom: 8px;"
+                            ),
+                            ui.div(
+                                ui.strong(
+                                    ui.tooltip(
+                                        ui.span("流動比率", ui.tags.span("?", style="color: white; background-color: #007bff; border-radius: 50%; width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; cursor: help; margin-left: 4px;")),
+                                        EXPLANATIONS["current_ratio"]
+                                    ),
+                                    "："
+                                ),
+                                ui.output_text("current_ratio", inline=True),
+                                style="margin-bottom: 8px;"
+                            ),
+                            ui.div(
+                                ui.strong(
+                                    ui.tooltip(
+                                        ui.span("固定比率", ui.tags.span("?", style="color: white; background-color: #007bff; border-radius: 50%; width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; cursor: help; margin-left: 4px;")),
+                                        EXPLANATIONS["fixed_ratio"]
+                                    ),
+                                    "："
+                                ),
+                                ui.output_text("fixed_ratio", inline=True),
+                                style="margin-bottom: 0px;"
+                            ),
+                        )
+                    ),
+                    style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;"
+                ),
+                
+                # 下段（2行目）
+                ui.div(
+                    # 左下: 成長性指標
+                    ui.card(
+                        ui.card_header(
+                            "成長性",
+                            style="background-color: #e3f2fd;"
+                            ),
+                        ui.card_body(
+                            ui.div(
+                                ui.strong(
+                                    ui.tooltip(
+                                        ui.span("売上高成長率", ui.tags.span("?", style="color: white; background-color: #007bff; border-radius: 50%; width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; cursor: help; margin-left: 4px;")),
+                                        EXPLANATIONS["revenue_growth"]
+                                    ),
+                                    "："
+                                ),
+                                ui.output_text("revenue_growth", inline=True),
+                                style="margin-bottom: 8px;"
+                            ),
+                            ui.div(
+                                ui.strong(
+                                    ui.tooltip(
+                                        ui.span("営業利益成長率", ui.tags.span("?", style="color: white; background-color: #007bff; border-radius: 50%; width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; cursor: help; margin-left: 4px;")),
+                                        EXPLANATIONS["operating_income_growth"]
+                                    ),
+                                    "："
+                                ),
+                                ui.output_text("operating_income_growth", inline=True),
+                                style="margin-bottom: 8px;"
+                            ),
+                            ui.div(
+                                ui.strong("EPS (1株当たり利益)："),
+                                ui.output_text("eps", inline=True),
+                                style="margin-bottom: 0px;"
+                            ),
+                        )
+                    ),
+                    
+                    # 右下: キャッシュフロー指標
+                    ui.card(
+                        ui.card_header(
+                            "キャッシュフロー",
+                            style="background-color: #e3f2fd;"
+                            ),
+                        ui.card_body(
+                            ui.div(
+                                ui.strong(
+                                    ui.tooltip(
+                                        ui.span("営業CF", ui.tags.span("?", style="color: white; background-color: #007bff; border-radius: 50%; width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; cursor: help; margin-left: 4px;")),
+                                        EXPLANATIONS["operating_cf"]
+                                    ),
+                                    "："
+                                ),
+                                ui.output_text("operating_cf", inline=True),
+                                style="margin-bottom: 8px;"
+                            ),
+                            ui.div(
+                                ui.strong(
+                                    ui.tooltip(
+                                        ui.span("投資CF", ui.tags.span("?", style="color: white; background-color: #007bff; border-radius: 50%; width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; cursor: help; margin-left: 4px;")),
+                                        EXPLANATIONS["investing_cf"]
+                                    ),
+                                    "："
+                                ),
+                                ui.output_text("investing_cf", inline=True),
+                                style="margin-bottom: 8px;"
+                            ),
+                            ui.div(
+                                ui.strong(
+                                    ui.tooltip(
+                                        ui.span("財務CF", ui.tags.span("?", style="color: white; background-color: #007bff; border-radius: 50%; width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; cursor: help; margin-left: 4px;")),
+                                        EXPLANATIONS["financing_cf"]
+                                    ),
+                                    "："
+                                ),
+                                ui.output_text("financing_cf", inline=True),
+                                style="margin-bottom: 8px;"
+                            ),
+                            ui.div(
+                                ui.strong(
+                                    ui.tooltip(
+                                        ui.span("フリーCF", ui.tags.span("?", style="color: white; background-color: #007bff; border-radius: 50%; width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; cursor: help; margin-left: 4px;")),
+                                        EXPLANATIONS["free_cf"]
+                                    ),
+                                    "："
+                                ),
+                                ui.output_text("free_cf", inline=True),
+                                style="margin-bottom: 0px;"
+                            ),
+                        )
+                    ),
+                    style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;"
+                )
             )
         )
     )

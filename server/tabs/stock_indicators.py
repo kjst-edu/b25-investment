@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from datetime import datetime, timedelta
 
+current_date = datetime.now().strftime("%Y/%m/%d")
+
 def ui_content(input, output, session):
     
     @reactive.calc
@@ -106,20 +108,56 @@ def ui_content(input, output, session):
             else:
                 color = "black"
                 sign = ""
+
+            # 投資指標の取得（yfinanceから）
+            try:
+                info = ticker_obj.info
+                per = info.get('forwardPE', info.get('trailingPE', 'N/A'))
+                psr = info.get('priceToSalesTrailing12Months', 'N/A')
+                pbr = info.get('priceToBook', 'N/A')
+                dividend_yield = info.get('dividendYield', 0)
+                shares_outstanding = info.get('sharesOutstanding', 'N/A')
+                # 日本株の場合、通常は100株単位
+                unit_shares = 100  # または info.get('lotSize', 100)
+                
+                # フォーマット処理
+                per_str = f"{per:.1f}" if isinstance(per, (int, float)) and per > 0 else "N/A"
+                psr_str = f"{psr:.1f}" if isinstance(psr, (int, float)) and psr > 0 else "N/A"
+                pbr_str = f"{pbr:.1f}" if isinstance(pbr, (int, float)) and pbr > 0 else "N/A"
+                dividend_str = f"{dividend_yield:.2f}%" if dividend_yield > 0 else "N/A"
+                
+            except:
+                per_str = psr_str = pbr_str = dividend_str = "N/A"
+                unit_shares = 100
             
             return ui.div(
-                ui.p(f"現在値： {latest_price:,.0f}円", style="margin: 0; margin-bottom: 8px;"),
+                # 左側：株価情報
                 ui.div(
-                    ui.span("前日比： ", style="color: black;"),
-                    ui.span(
-                        f"{sign}{price_change:,.0f}円 ({sign}{price_change_pct:.2f}%)",
-                        style=f"color: {color};"
+                    ui.p(f"現在値： {latest_price:,.0f}円", style="margin: 0; margin-bottom: 8px;"),
+                    ui.div(
+                        ui.span("前日比： ", style="color: black;"),
+                        ui.span(
+                            f"{sign}{price_change:,.0f}円 ({sign}{price_change_pct:.2f}%)",
+                            style=f"color: {color};"
+                        ),
+                        style="margin: 0; margin-bottom: 8px;"
                     ),
-                    style="margin: 0; margin-bottom: 8px;"
+                    ui.p(f"期間高値： {period_high:,.0f}円", style="margin: 0; margin-bottom: 4px;"),
+                    ui.p(f"期間安値： {period_low:,.0f}円", style="margin: 0; margin-bottom: 4px;"),
+                    ui.p(f"平均出来高： {avg_volume:,.0f}株", style="margin: 0;"),
+                    style="flex: 1; padding-right: 15px;"
                 ),
-                ui.p(f"期間高値： {period_high:,.0f}円", style="margin: 0; margin-bottom: 4px;"),
-                ui.p(f"期間安値： {period_low:,.0f}円", style="margin: 0; margin-bottom: 4px;"),
-                ui.p(f"平均出来高： {avg_volume:,.0f}株", style="margin: 0;")
+                
+                # 右側：投資指標
+                ui.div(
+                    ui.p(f"単元株数： {unit_shares:,}株", style="margin: 0; margin-bottom: 8px;"),
+                    ui.p(f"PER(調整後)： {per_str}倍", style="margin: 0; margin-bottom: 8px;"),
+                    ui.p(f"PSR： {psr_str}倍", style="margin: 0; margin-bottom: 4px;"),
+                    ui.p(f"PBR： {pbr_str}倍", style="margin: 0; margin-bottom: 4px;"),
+                    ui.p(f"配当利回り： {dividend_str}", style="margin: 0;"),
+                    style="flex: 1; padding-left: 15px; border-left: 1px solid #ddd;"
+                ),
+                style="display: flex; align-items: flex-start;"
             )
             
         except Exception as e:
@@ -127,12 +165,22 @@ def ui_content(input, output, session):
     
     return ui.card(
         ui.card_header(
-            ui.h4("株価・投資指標")
+            ui.div(
+                ui.div(
+                    ui.h4("株価・投資指標", style="margin: 0; display: inline-block;"),
+                    ui.span(" | ", style="margin: 0 10px; color: #666; font-size: 1.5em;"),
+                    ui.span(
+                        ui.output_text("company_name", inline=True),
+                        style="font-weight: bold; font-size: 1.5em;"
+                    ),
+                    style="display: flex; align-items: center;"
+                )
+            )
         ),
         ui.card_body(
             # 株価サマリー（上に移動）
             ui.div(
-                ui.h5("株価情報", style="margin-bottom: 8px;"),
+                ui.h5(f"株価情報（{current_date} 時点）", style="margin-bottom: 8px;"),
                 ui.div(
                     ui.output_ui("stock_summary"),
                     style="margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;"
