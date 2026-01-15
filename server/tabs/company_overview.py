@@ -342,7 +342,8 @@ def ui_content(input, output, session):
                 ax.set_xticklabels(years, rotation=0)
                 
                 # ラベルとタイトル
-                ax.set_ylabel('売上高 (億円)', fontsize=12)
+                ax.set_ylabel('売上高(億円)', fontsize=10, rotation=0, ha='right', va='top')
+                ax.yaxis.set_label_coords(-0.05, 1.02)
                 
                 # Y軸の範囲を安全に設定
                 max_val = max(revenue_oku.values)
@@ -361,7 +362,7 @@ def ui_content(input, output, session):
                             fontsize=10, fontweight='bold')
                 
                 # レイアウトを調整
-                plt.tight_layout()
+                plt.subplots_adjust(left=0.12, bottom=0.1, right=0.95, top=0.95)
                 return fig
             
             else:
@@ -462,7 +463,8 @@ def ui_content(input, output, session):
                 ax.set_xticklabels(years, rotation=0)
                 
                 # ラベルとタイトル
-                ax.set_ylabel('純利益 (億円)', fontsize=12)
+                ax.set_ylabel('純利益(億円)', fontsize=10, rotation=0, ha='right', va='top')
+                ax.yaxis.set_label_coords(-0.05, 1.02)
                 
                 # Y軸の範囲を設定（負の値も考慮、ただしプラスのみの場合は0から開始）
                 min_val = min(net_income_oku.values)
@@ -494,7 +496,7 @@ def ui_content(input, output, session):
                             fontsize=10, fontweight='bold')
                 
                 # レイアウトを調整
-                plt.tight_layout()
+                plt.subplots_adjust(left=0.12, bottom=0.1, right=0.95, top=0.95)
                 return fig
             
             else:
