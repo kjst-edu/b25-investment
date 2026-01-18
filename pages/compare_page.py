@@ -1,4 +1,6 @@
 from shiny import ui
+from shinywidgets import output_widget
+
 
 # 17業種
 industry_choices = {

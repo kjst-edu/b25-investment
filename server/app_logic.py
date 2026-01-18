@@ -5,6 +5,10 @@ import matplotlib.pyplot as plt
 from server.data_loader import load_master_financials
 import numpy as np
 from matplotlib.patches import FancyBboxPatch
+from shinywidgets import render_widget, output_widget
+import plotly.graph_objects as go
+
+
 
 INDUSTRY_KEY_TO_JP = {
     "food": "食品",
@@ -39,7 +43,7 @@ PERCENT_COLS = {
     "売上高成長率", "営業利益成長率", "当期純利益成長率",
 }
 
-
+PLOT_COLORS = ["#636EFA", "#EF553B", "#00CC96"] 
 
 # 表示フォーマット
 def fmt_value(col: str, v) -> str:
@@ -238,6 +242,11 @@ def compare_logic(input, output, session):
             )
 
         return ui.div(
+            ui.tags.style("""
+                /* plotly の上のアイコン列（modebar）を消す */
+                .js-plotly-plot .modebar-container { display: none !important; }
+                .js-plotly-plot .modebar { display: none !important; }
+            """),
             ui.card(
                 ui.h4("比較表"),
                 ui.output_ui("cmp_table"),  
@@ -250,7 +259,10 @@ def compare_logic(input, output, session):
                 ),
                 ui.card(
                     ui.h5("時系列（3年）"),
-                    ui.output_plot("cmp_graph_timeseries"),
+                    ui.row(
+                        ui.column(8, output_widget("cmp_graph_timeseries")),
+                        ui.column(4, ui.output_ui("ts_info_boxes")),
+                    ),
                 ),
             ),
         )
@@ -421,7 +433,7 @@ def compare_logic(input, output, session):
 
             if miss:
                 ax.annotate(
-                    "欠損",
+                    "データなし",
                     xy=(cx, 0),
                     xytext=(0, 3),
                     textcoords="offset points",
@@ -454,57 +466,119 @@ def compare_logic(input, output, session):
         fig.subplots_adjust(left=0.18, bottom=0.28, right=0.98, top=0.90)
         fig.tight_layout()
         return fig
-    
+
     # 企業比較グラフ（時系列）
     @output
-    @render.plot
+    @render_widget
     @reactive.event(input.run_compare)
     def cmp_graph_timeseries():
         codes = input.selected_companies() or []
         col = input.selected_metric_for_graph()
 
         if (not codes) or (col is None):
-            fig, ax = plt.subplots(figsize=(9.0, 4.0))
-            ax.text(0.5, 0.5, "企業と指標を選択してください。", ha="center", va="center")
-            ax.axis("off")
+            fig = go.Figure()
+            fig.add_annotation(text="企業と指標を選択してください。", x=0.5, y=0.5, showarrow=False)
+            fig.update_layout(height=380)
             return fig
 
         df_sub = df_all[df_all["証券コード"].isin(codes)].copy()
         if df_sub.empty:
-            fig, ax = plt.subplots(figsize=(9.0, 4.0))
-            ax.text(0.5, 0.5, "データがありません。", ha="center", va="center")
-            ax.axis("off")
+            fig = go.Figure()
+            fig.add_annotation(text="データがありません。", x=0.5, y=0.5, showarrow=False)
+            fig.update_layout(height=380)
             return fig
 
         years = sorted(df_sub["年度"].dropna().astype(int).unique().tolist())
-            
-        fig, (ax, ax_info) = plt.subplots(
-            1, 2,
-            figsize=(11.0, 4.0),
-            gridspec_kw={"width_ratios": [3.4, 1.3]}
-        )
 
         # ラベル
-        year = latest_common_year(df_sub, codes)
-        df_latest = df_sub[df_sub["年度"] == year].copy()
+        year_latest = latest_common_year(df_sub, codes)
+        df_latest = df_sub[df_sub["年度"] == year_latest].copy()
         label_map = build_company_labels(df_latest, codes)
 
-        # 軸設定
-        ax.set_xticks(years)
-        ax.set_xticklabels([str(int(y)) for y in years])
-        ax.grid(axis="y", linestyle="--", alpha=0.5)
-        ax.axhline(0, color="black", linewidth=1.0, linestyle="--", alpha=0.6)
-        ax.set_title(f"{col} の推移")
-        # ax.set_xlabel("年度")
-        # ax.set_ylabel(col)
+        def hover_fmt(c: str, v) -> str:
+            if v is None or (isinstance(v, float) and pd.isna(v)):
+                return "欠損"
+            return fmt_value(c, float(v))
 
-        format_yaxis(ax, col)
+        fig = go.Figure()
+
+        for i, code in enumerate(codes):
+            sub = df_sub[df_sub["証券コード"] == code].set_index("年度")
+            s = sub[col].reindex(years)
+
+            yvals = [None if (v is None or (isinstance(v, float) and pd.isna(v))) else float(v) for v in s.values]
+            hover_text = [hover_fmt(col, v) for v in s.values]
+
+            label = label_map.get(code, code)
+
+            color = PLOT_COLORS[i % len(PLOT_COLORS)]
+
+            fig.add_trace(
+                go.Scatter(
+                    x=years,
+                    y=yvals,
+                    mode="lines+markers",
+                    name=label,
+                    line=dict(color=color, width=2),
+                    marker=dict(color=color, size=7),
+                    text=hover_text,
+                    hovertemplate="%{text}<extra></extra>",
+                    connectgaps=False,
+                )
+            )
+
+        # 軸フォーマット
+        yaxis = {}
+        if col in MONEY_COLS:
+            yaxis.update(tickformat=",")
+        elif col in PERCENT_COLS:
+            yaxis.update(ticksuffix="%", tickformat=".0f")
+
+        fig.update_layout(
+            title=f"{col} の推移",
+            height=380,
+            margin=dict(l=50, r=20, t=60, b=50),
+            hovermode="closest",
+            showlegend=False,
+        )
+        fig.update_layout(dragmode=False)
+        fig.update_xaxes(fixedrange=True)
+        fig.update_yaxes(fixedrange=True)
+
+        fig.update_xaxes(type="category", categoryorder="array", categoryarray=years)
+        fig.update_yaxes(**yaxis)
+
+        fig.add_hline(y=0, line_width=1, line_dash="dash", opacity=0.6)
+       
+        return fig
+    
+    # 情報カード
+    @output
+    @render.ui
+    @reactive.event(input.run_compare)
+    def ts_info_boxes():
+        codes = input.selected_companies() or []
+        col = input.selected_metric_for_graph()
+
+        if (not codes) or (col is None):
+            return ui.p("")
+
+        df_sub = df_all[df_all["証券コード"].isin(codes)].copy()
+        if df_sub.empty:
+            return ui.p("")
+
+        years = sorted(df_sub["年度"].dropna().astype(int).unique().tolist())
+
+        # ラベル
+        year_latest = latest_common_year(df_sub, codes)
+        df_latest = df_sub[df_sub["年度"] == year_latest].copy()
+        label_map = build_company_labels(df_latest, codes)
 
         def unit_suffix(c: str) -> str:
             if c in MONEY_COLS:
                 return "億円"
             if c in PERCENT_COLS:
-                return "%"   
+                return "%"
             return ""
 
         u = unit_suffix(col)
@@ -527,70 +601,81 @@ def compare_logic(input, output, session):
                 return f"{v:.1f}%"
             return f"{v:,.2f}"
 
-        # 右外に出す情報
-        ax_info.axis("off")
-
-        info_rows = [] 
-
-        for c in codes:
+        cards = []
+        for i, c in enumerate(codes):
             sub = df_sub[df_sub["証券コード"] == c].set_index("年度")
-            s = sub[col].reindex(years) 
-            label = label_map.get(c, c)
+            s = sub[col].reindex(years)
 
-            # 欠損年
+            color = PLOT_COLORS[i % len(PLOT_COLORS)]
+
+            label_raw = str(label_map.get(c, c))
+            max_chars = 14
+            label = label_raw if len(label_raw) <= max_chars else label_raw[:max_chars-1] + "…"
+
             miss_years = [str(int(y)) for y in years if pd.isna(s.loc[y])]
             s_non = s.dropna()
 
             if not s_non.empty:
-                line = ax.plot(years, s.values, marker="o")[0]
-                color = line.get_color()
-
                 avg = float(s_non.mean())
 
                 if len(s_non) >= 2:
                     first_y, last_y = int(s_non.index[0]), int(s_non.index[-1])
                     delta = float(s_non.iloc[-1] - s_non.iloc[0])
-                    delta_text = f"変化: {fmt_value(col, delta)}（{first_y}→{last_y}）"
+                    delta_text = f"変化: {fmt_delta(col, delta)}（{first_y}→{last_y}）"
                 else:
                     delta_text = "変化: —（データ1点）"
 
-                avg_text = f"平均: {fmt_value(col, avg)}"
+                avg_text = f"平均: {fmt_avg(col, avg)}"
                 miss_text = ("欠損: " + ",".join(miss_years)) if miss_years else ""
-                info_rows.append((label, color, avg_text, delta_text, miss_text))
             else:
-                info_rows.append((label, "#666666", "平均: —", "変化: —", "欠損（全期間）"))
+                avg_text = "平均: —"
+                delta_text = "変化: —"
+                miss_text = "欠損（全期間）"
 
-        y = 0.92
-        base_h = 0.26
-        gap = 0.04
-
-        for (label, color, avg_text, delta_text, miss_text) in info_rows:
-            extra = 0.07 if miss_text else 0.0
-            h = base_h + extra
-
-            box = FancyBboxPatch(
-                (0.02, y - h), 0.96, h,
-                boxstyle="round,pad=0.012,rounding_size=0.02",
-                transform=ax_info.transAxes,
-                linewidth=1.0,
-                edgecolor="#dddddd",
-                facecolor="none"
+            cards.append(
+                ui.tags.div(
+                    ui.tags.div(
+                        ui.tags.span(
+                            style=f"""
+                                display:inline-block;
+                                width:26px;
+                                height:3px;
+                                background:{color};
+                                border-radius:2px;
+                                margin-right:8px;
+                                flex: 0 0 auto;  
+                            """
+                        ),
+                        ui.tags.span(
+                            label, 
+                            style="""
+                                font-weight:600;
+                                flex: 1 1 auto; 
+                                min-width: 0;
+                                white-space:nowrap;
+                                overflow: hidden;
+                                text-overflow:ellipsis;
+                            """,
+                        ),
+                        style="""
+                            margin-bottom:6px;
+                            display:flex;
+                            align-items:center;
+                            gap: 0px;
+                        """,
+                    ),
+                    ui.tags.div(avg_text, style="font-size:12px; color:#555; margin-bottom:2px;"),
+                    ui.tags.div(delta_text, style="font-size:12px; color:#555; margin-bottom:2px;"),
+                    ui.tags.div(miss_text, style="font-size:12px; color:#777;") if miss_text else ui.tags.div(),
+                    style="""
+                        border:1px solid #ddd;
+                        border-radius:10px;
+                        padding:10px 12px;
+                        margin-bottom:10px;
+                        background:#fff;
+                    """,
+                )
             )
-            ax_info.add_patch(box)
-            
-            # 色サンプル
-            ax_info.plot([0.06, 0.16], [y - 0.07, y - 0.07],
-                        color=color, lw=2, transform=ax_info.transAxes, clip_on=False)
 
-            # テキスト
-            ax_info.text(0.18, y - 0.07, label, fontsize=9, va="center", transform=ax_info.transAxes)
-            ax_info.text(0.18, y - 0.14, avg_text, fontsize=8, color="#555", va="center", transform=ax_info.transAxes)
-            ax_info.text(0.18, y - 0.20, delta_text, fontsize=8, color="#555", va="center", transform=ax_info.transAxes)
+        return ui.TagList(*cards)
 
-            if miss_text:
-                ax_info.text(0.18, y - 0.26, miss_text, fontsize=8, color="#777", va="center", transform=ax_info.transAxes)
-
-            y -= (h + gap)
-
-        fig.tight_layout(pad=1.2)
-        return fig
