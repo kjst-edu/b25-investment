@@ -33,7 +33,7 @@ def ui_content(input, output, session):
         
         try:
             # まず、master_financial_indicators.csvからデータを取得
-            df = pd.read_csv('master_financial_indicators.csv')
+            df = pd.read_csv('master_financial_indicators_v2.csv')
             
             # 証券コードでフィルタリング
             code = int(code.replace('.T', ''))
@@ -57,7 +57,7 @@ def ui_content(input, output, session):
                         'roa': latest_data.get('ROA', None),
                         'equity_ratio': latest_data.get('自己資本比率', None),
                         'current_ratio': latest_data.get('流動比率', None),
-                        'fixed_ratio': None,  # CSVにない場合はNone
+                        'fixed_ratio': latest_data.get('固定比率', None),  # CSVにない場合はNone
                         'revenue_growth': latest_data.get('売上高成長率', None),
                         'operating_income_growth': latest_data.get('営業利益成長率', None),
                         'eps': None,  # CSVにない場合はNone
