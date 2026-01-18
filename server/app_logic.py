@@ -302,11 +302,11 @@ def compare_logic(input, output, session):
     - 選択する → その業界の企業から選べます
 
     **2. 企業（最大3社）**  
-    比較したい企業を選んでください。
+    - 比較したい企業を選んでください。
 
     **3. 指標の選び方**  
     - 表：複数選択OK  
-    - グラフ：表で選んだ中から1つだけ選択
+    - グラフ：表で選んだ指標の中から1つだけ選択
 
     最後に **「比較する」** を押してください。
                     """
@@ -614,6 +614,7 @@ def compare_logic(input, output, session):
             showlegend=False,
         )
         fig.update_layout(dragmode=False)
+        fig.update_layout(hoverlabel=dict(font=dict(color="white")))
         fig.update_xaxes(fixedrange=True)
         fig.update_yaxes(fixedrange=True)
 
