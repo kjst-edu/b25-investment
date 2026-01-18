@@ -157,7 +157,7 @@ def ui_content(input, output, session):
                     ui.p(f"配当利回り： {dividend_str}", style="margin: 0;"),
                     style="flex: 1; padding-left: 15px; border-left: 1px solid #ddd;"
                 ),
-                style="display: flex; align-items: flex-start;"
+                style="display: flex; align-items: flex-start; font-weight: bold;"
             )
             
         except Exception as e:

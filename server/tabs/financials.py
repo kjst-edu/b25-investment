@@ -305,7 +305,7 @@ def ui_content(input, output, session):
         return ui.span("データなし")
     
     # === 安全性指標のレンダー関数 ===
-    @render.text
+    @render.ui
     def equity_ratio():
         data = financial_data()
         if not data:
@@ -313,10 +313,26 @@ def ui_content(input, output, session):
         if 'error' in data:
             return "取得エラー"
         if data['equity_ratio'] is not None:
-            return f"{data['equity_ratio']:.2f}%"
+            ratio = data['equity_ratio']
+            # 色と評価テキストを決定
+            if ratio >= 50:
+                color = "green"
+                status = "安全"
+            elif ratio >= 20:
+                color = "#FFA500"  # オレンジ/黄色
+                status = "安定"
+            else:
+                color = "red"
+                status = "要注意"
+            
+            return ui.span(
+                ui.span(f"{ratio:.2f}%", style=f"color: {color}; font-weight: bold;"),
+                " ",
+                ui.span(f"({status})", style=f"color: {color}; font-weight: bold;")
+            )
         return "データなし"
 
-    @render.text
+    @render.ui
     def current_ratio():
         data = financial_data()
         if not data:
@@ -324,10 +340,26 @@ def ui_content(input, output, session):
         if 'error' in data:
             return "取得エラー"
         if data['current_ratio'] is not None:
-            return f"{data['current_ratio']:.2f}%"
+            ratio = data['current_ratio']
+            # 色と評価テキストを決定
+            if ratio >= 200:
+                color = "green"
+                status = "安全"
+            elif ratio >= 100:
+                color = "#FFA500"  # オレンジ/黄色
+                status = "安定"
+            else:
+                color = "red"
+                status = "要注意"
+            
+            return ui.span(
+                ui.span(f"{ratio:.2f}%", style=f"color: {color}; font-weight: bold;"),
+                " ",
+                ui.span(f"({status})", style=f"color: {color}; font-weight: bold;")
+            )
         return "データなし"
 
-    @render.text
+    @render.ui
     def fixed_ratio():
         data = financial_data()
         if not data:
@@ -335,7 +367,23 @@ def ui_content(input, output, session):
         if 'error' in data:
             return "取得エラー"
         if data['fixed_ratio'] is not None:
-            return f"{data['fixed_ratio']:.2f}%"
+            ratio = data['fixed_ratio']
+            # 色と評価テキストを決定
+            if ratio <= 100:
+                color = "green"
+                status = "安全"
+            elif ratio <= 150:
+                color = "#FFA500"  # オレンジ/黄色
+                status = "安定(やや注意)"
+            else:
+                color = "red"
+                status = "要注意"
+            
+            return ui.span(
+                ui.span(f"{ratio:.2f}%", style=f"color: {color}; font-weight: bold;"),
+                " ",
+                ui.span(f"({status})", style=f"color: {color}; font-weight: bold;")
+            )
         return "データなし"
     
     # === 成長性指標のレンダー関数 ===
@@ -373,48 +421,52 @@ def ui_content(input, output, session):
         return "データなし"
 
     # === キャッシュフロー指標のレンダー関数 ===
-    @render.text
+    @render.ui
     def operating_cf():
         data = financial_data()
         if not data:
             return "データを取得中..."
         if 'error' in data:
             return "取得エラー"
-        if data['operating_cf'] is not None:
-            return f"{data['operating_cf']:.2f}億円"
+        if data['operating_cf'] is not None and not pd.isna(data['operating_cf']):
+            value = data['operating_cf']
+            return ui.span(f"{value:.2f}億円")
         return "データなし"
 
-    @render.text
+    @render.ui
     def investing_cf():
         data = financial_data()
         if not data:
             return "データを取得中..."
         if 'error' in data:
             return "取得エラー"
-        if data['investing_cf'] is not None:
-            return f"{data['investing_cf']:.2f}億円"
+        if data['investing_cf'] is not None and not pd.isna(data['investing_cf']):
+            value = data['investing_cf']
+            return ui.span(f"{value:.2f}億円")
         return "データなし"
 
-    @render.text
+    @render.ui
     def financing_cf():
         data = financial_data()
         if not data:
             return "データを取得中..."
         if 'error' in data:
             return "取得エラー"
-        if data['financing_cf'] is not None:
-            return f"{data['financing_cf']:.2f}億円"
+        if data['financing_cf'] is not None and not pd.isna(data['financing_cf']):
+            value = data['financing_cf']
+            return ui.span(f"{value:.2f}億円")
         return "データなし"
 
-    @render.text
+    @render.ui
     def free_cf():
         data = financial_data()
         if not data:
             return "データを取得中..."
         if 'error' in data:
             return "取得エラー"
-        if data['free_cf'] is not None:
-            return f"{data['free_cf']:.2f}億円"
+        if data['free_cf'] is not None and not pd.isna(data['free_cf']):
+            value = data['free_cf']
+            return ui.span(f"{value:.2f}億円")
         return "データなし"
 
     return ui.card(
@@ -498,7 +550,7 @@ def ui_content(input, output, session):
                                     ),
                                     "："
                                 ),
-                                ui.output_text("equity_ratio", inline=True),
+                                ui.output_ui("equity_ratio", inline=True),  # output_text から output_ui に変更
                                 style="margin-bottom: 8px;"
                             ),
                             ui.div(
@@ -509,7 +561,7 @@ def ui_content(input, output, session):
                                     ),
                                     "："
                                 ),
-                                ui.output_text("current_ratio", inline=True),
+                                ui.output_ui("current_ratio", inline=True),  # output_text から output_ui に変更
                                 style="margin-bottom: 8px;"
                             ),
                             ui.div(
@@ -520,7 +572,7 @@ def ui_content(input, output, session):
                                     ),
                                     "："
                                 ),
-                                ui.output_text("fixed_ratio", inline=True),
+                                ui.output_ui("fixed_ratio", inline=True),  # output_text から output_ui に変更
                                 style="margin-bottom: 0px;"
                             ),
                         )
@@ -582,7 +634,7 @@ def ui_content(input, output, session):
                                     ),
                                     "："
                                 ),
-                                ui.output_text("operating_cf", inline=True),
+                                ui.output_ui("operating_cf", inline=True),  # output_text から output_ui に変更
                                 style="margin-bottom: 8px;"
                             ),
                             ui.div(
@@ -593,7 +645,7 @@ def ui_content(input, output, session):
                                     ),
                                     "："
                                 ),
-                                ui.output_text("investing_cf", inline=True),
+                                ui.output_ui("investing_cf", inline=True),  # output_text から output_ui に変更
                                 style="margin-bottom: 8px;"
                             ),
                             ui.div(
@@ -604,7 +656,7 @@ def ui_content(input, output, session):
                                     ),
                                     "："
                                 ),
-                                ui.output_text("financing_cf", inline=True),
+                                ui.output_ui("financing_cf", inline=True),  # output_text から output_ui に変更
                                 style="margin-bottom: 8px;"
                             ),
                             ui.div(
@@ -615,7 +667,7 @@ def ui_content(input, output, session):
                                     ),
                                     "："
                                 ),
-                                ui.output_text("free_cf", inline=True),
+                                ui.output_ui("free_cf", inline=True),  # output_text から output_ui に変更
                                 style="margin-bottom: 0px;"
                             ),
                         )
