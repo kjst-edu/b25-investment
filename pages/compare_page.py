@@ -29,6 +29,34 @@ industry_choices_with_all = {"": "全業界"} | industry_choices
 compare_ui = ui.layout_sidebar(
     #----------左：サイドバー----------
     ui.sidebar(
+        ui.tags.style("""
+            .metric-label-wrap { display:inline-flex; align-items:center; gap:6px; }
+            .help-badge{
+                display:inline-flex;
+                align-items:center;
+                justify-content:center;
+                width:18px;
+                height:18px;
+                border-radius:50%;
+                background:#0d6efd;   /* 検索画面と同系の青 */
+                color:#fff;
+                font-size:12px;
+                font-weight:700;
+                cursor: help;
+                line-height:1;
+                user-select:none;
+            }
+        """),
+        ui.tags.script("""
+            function initTooltips(){
+              if (typeof bootstrap === "undefined") return;
+              document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+                if (!el._tooltip) el._tooltip = new bootstrap.Tooltip(el);
+              });
+            }
+            document.addEventListener("DOMContentLoaded", initTooltips);
+            setInterval(initTooltips, 800);
+        """),
 
         # 業界
         ui.h5("業界"),
