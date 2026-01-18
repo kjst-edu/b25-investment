@@ -163,6 +163,42 @@ def ui_content(input, output, session):
         except Exception as e:
             return "データの取得に失敗しました"
     
+    # 期間騰落率を表示する新しいレンダー関数を追加
+    @render.ui
+    def period_return_display():
+        """選択期間の騰落率を表示"""
+        data = stock_data()
+        
+        if data is None or len(data) < 2:
+            return ""
+        
+        try:
+            latest_price = data['Close'].iloc[-1]
+            period_start_price = data['Close'].iloc[0]
+            period_return = ((latest_price - period_start_price) / period_start_price * 100) if period_start_price != 0 else 0
+            
+            color = "red" if period_return >= 0 else "blue"
+            sign = "+" if period_return >= 0 else ""
+            
+            # 期間の日本語表示
+            period_labels = {
+                "1mo": "1ヶ月",
+                "3mo": "3ヶ月",
+                "6mo": "6ヶ月",
+                "1y": "1年",
+                "3y": "3年"
+            }
+            period = input.period()
+            period_label = period_labels.get(period, period)
+            
+            return ui.span(
+                f"({period_label}騰落率: {sign}{period_return:.2f}%)",
+                style=f"color: {color}; font-weight: bold; margin-left: 10px;"
+            )
+            
+        except Exception:
+            return ""
+    
     return ui.card(
         ui.card_header(
             ui.div(
@@ -177,17 +213,7 @@ def ui_content(input, output, session):
                 )
             )
         ),
-        ui.card_body(
-            # 株価サマリー（上に移動）
-            ui.div(
-                ui.h5(f"株価情報（{current_date} 時点）", style="margin-bottom: 8px;"),
-                ui.div(
-                    ui.output_ui("stock_summary"),
-                    style="margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;"
-                ),
-                style="margin-bottom: 15px; padding: 12px; background-color: #f8f9fa; border-radius: 5px; border-left: 4px solid #007bff;"
-            ),
-            
+        ui.card_body( 
             # 期間選択ボタン
             ui.div(
                 ui.h5("表示期間"),
@@ -206,7 +232,21 @@ def ui_content(input, output, session):
                 ),
                 style="margin-bottom: 5px;"
             ),
-            
+            # 株価サマリー（上に移動）
+            ui.div(
+                ui.div(
+                    ui.h5(
+                        ui.span(f"株価情報（{current_date} 時点）", style="display: inline;"),
+                        ui.output_ui("period_return_display", inline=True),
+                        style="margin-bottom: 8px;"
+                    ),
+                ),
+                ui.div(
+                    ui.output_ui("stock_summary"),
+                    style="margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;"
+                ),
+                style="margin-bottom: 15px; padding: 12px; background-color: #f8f9fa; border-radius: 5px; border-left: 4px solid #007bff;"
+            ),
             # 株価チャート
             ui.div(
                 ui.output_plot("stock_chart"),
