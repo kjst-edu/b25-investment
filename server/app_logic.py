@@ -7,6 +7,7 @@ import numpy as np
 from matplotlib.patches import FancyBboxPatch
 from shinywidgets import render_widget, output_widget
 import plotly.graph_objects as go
+from server.explanations import EXPLANATIONS
 
 
 
@@ -90,8 +91,7 @@ def compare_logic(input, output, session):
     def _mark_compare_ran():
         compare_ran.set(True)
 
-    # カテゴリごとの指標リスト
-    metric_choices = {
+    metric_choices_table = {
         "profit": {
             "売上高(億円)": "売上高(億円)",
             "営業利益(億円)": "営業利益(億円)",
@@ -107,7 +107,7 @@ def compare_logic(input, output, session):
         "growth": {
             "売上高成長率": "売上高成長率(%)",
             "営業利益成長率": "営業利益成長率(%)",
-            "当期純利益成長率": "当期純利益成長率(%)"
+            "当期純利益成長率": "当期純利益成長率(%)",
         },
         "cashflow": {
             "営業CF(億円)": "営業CF(億円)",
@@ -115,6 +115,78 @@ def compare_logic(input, output, session):
             "財務CF(億円)": "財務CF(億円)",
             "フリーCF(億円)": "フリーCF(億円)",
             "営業CFマージン": "営業CFマージン(%)",
+        },
+    }
+
+    METRIC_KEY_MAP = {
+        "ROE": "roe",
+        "自己資本比率": "equity_ratio",
+        "売上高成長率": "revenue_growth",
+        "営業利益成長率": "operating_income_growth",
+        "当期純利益成長率": "net_income_growth",
+        "営業CF(億円)": "operating_cf",
+        "投資CF(億円)": "investing_cf",
+        "財務CF(億円)": "financing_cf",
+        "フリーCF(億円)": "free_cf",
+        "営業CFマージン": "operating_cf_margin",
+        "営業利益率": "operating_margin",
+        "ROA": "roa",
+        "流動比率": "current_ratio",
+    }
+
+    def get_help_text(metric_col: str) -> str:
+        key = METRIC_KEY_MAP.get(metric_col)
+        if not key:
+            return ""   
+        return EXPLANATIONS.get(key, "")
+
+    def label_with_help(display_name: str, help_text: str):
+        if not help_text:
+            return display_name  
+
+        safe = (
+            help_text
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace('"', "&quot;")
+        )
+
+        return ui.HTML(
+            f"""
+            <span class="metric-label-wrap">
+            <span>{display_name}</span>
+            <span class="help-badge" data-bs-toggle="tooltip" data-bs-placement="top" title="{safe}">?</span>
+            </span>
+            """
+        )
+
+
+    # カテゴリごとの指標リスト
+    metric_choices = {
+        "profit": {
+            "売上高(億円)": label_with_help("売上高", get_help_text("売上高(億円)")),
+            "営業利益(億円)": label_with_help("営業利益", get_help_text("営業利益(億円)")),
+            "当期純利益(億円)": label_with_help("当期純利益", get_help_text("当期純利益(億円)")),
+            "営業利益率": label_with_help("営業利益率", get_help_text("営業利益率")),
+            "ROE": label_with_help("ROE", get_help_text("ROE")),
+            "ROA": label_with_help("ROA", get_help_text("ROA")),
+        },
+        "safety": {
+            "自己資本比率": label_with_help("自己資本比率", get_help_text("自己資本比率")),
+            "流動比率": label_with_help("流動比率", get_help_text("流動比率")),
+        },
+        "growth": {
+            "売上高成長率": label_with_help("売上高成長率", get_help_text("売上高成長率")),
+            "営業利益成長率": label_with_help("営業利益成長率", get_help_text("営業利益成長率")),
+            "当期純利益成長率": label_with_help("当期純利益成長率", get_help_text("当期純利益成長率")),
+        },
+        "cashflow": {
+            "営業CF(億円)": label_with_help("営業CF", get_help_text("営業CF(億円)")),
+            "投資CF(億円)": label_with_help("投資CF", get_help_text("投資CF(億円)")),
+            "財務CF(億円)": label_with_help("財務CF", get_help_text("財務CF(億円)")),
+            "フリーCF(億円)": label_with_help("フリーCF", get_help_text("フリーCF(億円)")),
+            "営業CFマージン": label_with_help("営業CFマージン", get_help_text("営業CFマージン")),
         },
     }
 
@@ -320,7 +392,7 @@ def compare_logic(input, output, session):
             col_labels[c] = f"{name}（{c}）" if name_count[name] >= 2 else name
 
         category = input.metric_category()
-        choices_all = metric_choices.get(category, {})
+        choices_all = metric_choices_table.get(category, {})
         metric_labels = [choices_all.get(m, m) for m in metric_cols]
 
         table = pd.DataFrame(index=metric_labels, columns=[col_labels[c] for c in codes], dtype=object)
