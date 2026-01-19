@@ -55,7 +55,6 @@ compare_ui = ui.layout_sidebar(
               });
             }
             document.addEventListener("DOMContentLoaded", initTooltips);
-            setInterval(initTooltips, 800);
         """),
 
         # 業界

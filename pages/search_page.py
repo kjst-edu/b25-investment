@@ -1,7 +1,26 @@
 from shiny import ui, render, reactive
 from server.data_company_to_code import CODE_TO_COMPANY, COMPANY_TO_CODE, CODE_TO_INDUSTRY, INDUSTRY_TO_CODES
 
+TOOLTIP_BOOTSTRAP_INIT = ui.tags.script(r"""
+(() => {
+  const selector = '[data-bs-toggle="tooltip"],[data-toggle="tooltip"]';
+
+  function initTooltips() {
+    if (!window.bootstrap || !bootstrap.Tooltip) return;
+    document.querySelectorAll(selector).forEach(el => {
+      bootstrap.Tooltip.getOrCreateInstance(el);
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", initTooltips);
+
+  const obs = new MutationObserver(() => initTooltips());
+  obs.observe(document.body, { childList: true, subtree: true });
+})();
+""")
+
 search_ui = ui.page_fluid(
+    TOOLTIP_BOOTSTRAP_INIT,
     ui.layout_sidebar(
         ui.sidebar(
             ui.output_ui("select_industry_ui"),
