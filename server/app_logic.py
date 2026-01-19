@@ -132,6 +132,9 @@ def compare_logic(input, output, session):
         "営業利益率": "operating_margin",
         "ROA": "roa",
         "流動比率": "current_ratio",
+        "売上高(億円)": "sales",
+        "営業利益(億円)": "operating_income",
+        "当期純利益(億円)": "net_income",
     }
 
     def get_help_text(metric_col: str) -> str:

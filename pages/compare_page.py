@@ -38,7 +38,7 @@ compare_ui = ui.layout_sidebar(
                 width:18px;
                 height:18px;
                 border-radius:50%;
-                background:#0d6efd;   /* 検索画面と同系の青 */
+                background:#0d6efd;  
                 color:#fff;
                 font-size:12px;
                 font-weight:700;
